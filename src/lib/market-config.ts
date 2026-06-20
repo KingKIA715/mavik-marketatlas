@@ -42,7 +42,7 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
     symbol: "€",
     flag: "🇪🇺",
     displayCurrencies: ["EUR", "USD", "GBP", "INR"],
-    metalUnit: "gram",
+    metalUnit: "ounce",
     stockIndices: ["^STOXX50E"],
   },
   GB: {
