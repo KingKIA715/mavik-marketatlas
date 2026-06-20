@@ -97,6 +97,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
+      { name: "twitter:title", content: "MarketAtlas" },
+      { name: "description", content: "A free financial dashboard displaying real-time gold, silver, platinum, copper, stock indices, and currency exchange rates." },
+      { property: "og:description", content: "A free financial dashboard displaying real-time gold, silver, platinum, copper, stock indices, and currency exchange rates." },
+      { name: "twitter:description", content: "A free financial dashboard displaying real-time gold, silver, platinum, copper, stock indices, and currency exchange rates." },
+      { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e95aab21-bb06-43e7-87d9-905f4bf9cdfc/id-preview-3da40f8a--697d2085-a22a-4b9f-b713-f4cf3e7b06ea.lovable.app-1781920783572.png" },
+      { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/e95aab21-bb06-43e7-87d9-905f4bf9cdfc/id-preview-3da40f8a--697d2085-a22a-4b9f-b713-f4cf3e7b06ea.lovable.app-1781920783572.png" },
     ],
     links: [
       {
