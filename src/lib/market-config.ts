@@ -33,7 +33,27 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
     flag: "🇺🇸",
     displayCurrencies: ["USD", "EUR", "GBP", "JPY", "INR"],
     metalUnit: "ounce",
-    stockIndices: ["^GSPC", "^IXIC"],
+    stockIndices: ["^GSPC", "^IXIC", "^DJI"],
+  },
+  EU: {
+    code: "EU",
+    name: "Eurozone",
+    currency: "EUR",
+    symbol: "€",
+    flag: "🇪🇺",
+    displayCurrencies: ["EUR", "USD", "GBP", "INR"],
+    metalUnit: "gram",
+    stockIndices: ["^STOXX50E"],
+  },
+  GB: {
+    code: "GB",
+    name: "United Kingdom",
+    currency: "GBP",
+    symbol: "£",
+    flag: "🇬🇧",
+    displayCurrencies: ["GBP", "EUR", "USD", "INR"],
+    metalUnit: "gram",
+    stockIndices: ["^FTSE"],
   },
   AE: {
     code: "AE",
@@ -45,27 +65,20 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
     metalUnit: "gram",
     stockIndices: ["^DFMGI"],
   },
-  GB: {
-    code: "GB",
-    name: "United Kingdom",
-    currency: "GBP",
-    symbol: "£",
-    flag: "🇬🇧",
-    displayCurrencies: ["GBP", "EUR", "USD", "INR"],
-    metalUnit: "ounce",
-    stockIndices: ["^FTSE"],
-  },
-  EU: {
-    code: "EU",
-    name: "Eurozone",
-    currency: "EUR",
-    symbol: "€",
-    flag: "🇪🇺",
-    displayCurrencies: ["EUR", "USD", "GBP", "INR"],
-    metalUnit: "ounce",
-    stockIndices: ["^STOXX50E"],
-  },
 };
+
+/**
+ * Country-specific retail premiums applied to global spot prices to better
+ * reflect local market rates. Indian retail bullion includes ~15% customs
+ * duty + 3% GST on gold, and ~10% customs + 3% GST on silver.
+ */
+export const RETAIL_PREMIUM: Partial<Record<CountryCode, { XAU: number; XAG: number }>> = {
+  IN: { XAU: 1.18, XAG: 1.13 },
+  AE: { XAU: 1.05, XAG: 1.05 }, // 5% VAT
+};
+
+export const GRAMS_PER_KG = 1000;
+export const GRAMS_PER_SAVARAN = 8; // 1 Savaran / Pavan ~= 8 g (South India)
 
 export interface MetalDef {
   code: "XAU" | "XAG" | "XPT" | "HG";
