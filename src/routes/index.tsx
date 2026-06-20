@@ -5,8 +5,11 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   COUNTRIES,
   GRAMS_PER_TROY_OUNCE,
+  GRAMS_PER_KG,
+  GRAMS_PER_SAVARAN,
   KARAT_PURITY,
   METALS,
+  RETAIL_PREMIUM,
   STOCKS,
   type CountryCode,
 } from "@/lib/market-config";
@@ -214,41 +217,65 @@ function MetalsGrid({
   const silver = METALS.find((m) => m.code === "XAG")!;
   const platinum = METALS.find((m) => m.code === "XPT")!;
   const copper = METALS.find((m) => m.code === "HG")!;
+  const premium = RETAIL_PREMIUM[country];
 
-  const perUnit = (usdOz: number) =>
-    unit === "gram" ? usdOz / GRAMS_PER_TROY_OUNCE : usdOz;
+  // USD per ounce → USD per chosen retail unit, with regional retail premium for XAU/XAG.
+  const perUnit = (usdOz: number, code: "XAU" | "XAG" | "XPT" | "HG") => {
+    const base = unit === "gram" ? usdOz / GRAMS_PER_TROY_OUNCE : usdOz;
+    if (premium && (code === "XAU" || code === "XAG")) return base * premium[code];
+    return base;
+  };
+  // For per-gram derived rows (Savaran, KG) we always want gram-basis with premium
+  const perGramLocal = (code: "XAU" | "XAG") => {
+    const base = metals[code] / GRAMS_PER_TROY_OUNCE;
+    const adj = premium ? base * premium[code] : base;
+    return toLocal(adj);
+  };
 
   return (
     <div className="space-y-3">
-      {/* Top row: Gold (large) + Silver */}
       <div className="grid gap-3 sm:grid-cols-2">
         <MetalCard
           metal={gold}
-          usd={perUnit(metals[gold.code])}
-          local={toLocal(perUnit(metals[gold.code]))}
+          usd={perUnit(metals[gold.code], "XAU")}
+          local={toLocal(perUnit(metals[gold.code], "XAU"))}
           currency={currency}
           unit={unit}
           showKarats
+          extraRows={
+            country === "IN"
+              ? [
+                  {
+                    label: "1 Savaran (8 g, 22K)",
+                    value: perGramLocal("XAU") * GRAMS_PER_SAVARAN * KARAT_PURITY[22],
+                  },
+                ]
+              : undefined
+          }
+          note={premium ? "Incl. duties & taxes" : undefined}
         />
         <MetalCard
           metal={silver}
-          usd={perUnit(metals[silver.code])}
-          local={toLocal(perUnit(metals[silver.code]))}
+          usd={perUnit(metals[silver.code], "XAG")}
+          local={toLocal(perUnit(metals[silver.code], "XAG"))}
           currency={currency}
           unit={unit}
+          extraRows={[
+            { label: "Per kg", value: perGramLocal("XAG") * GRAMS_PER_KG },
+          ]}
+          note={premium ? "Incl. duties & taxes" : undefined}
         />
       </div>
 
-      {/* Bottom row: compact platinum + copper */}
       <div className="grid gap-3 sm:grid-cols-2">
         <MetalChip
           metal={platinum}
-          local={toLocal(perUnit(metals[platinum.code]))}
+          local={toLocal(perUnit(metals[platinum.code], "XPT"))}
           currency={currency}
         />
         <MetalChip
           metal={copper}
-          local={toLocal(perUnit(metals[copper.code]))}
+          local={toLocal(perUnit(metals[copper.code], "HG"))}
           currency={currency}
         />
       </div>
@@ -263,6 +290,8 @@ function MetalCard({
   currency,
   unit,
   showKarats = false,
+  extraRows,
+  note,
 }: {
   metal: (typeof METALS)[number];
   usd: number;
@@ -270,6 +299,8 @@ function MetalCard({
   currency: string;
   unit: "gram" | "ounce";
   showKarats?: boolean;
+  extraRows?: { label: string; value: number }[];
+  note?: string;
 }) {
   const valid = Number.isFinite(local) && local > 0;
   return (
@@ -292,6 +323,7 @@ function MetalCard({
       </div>
       <div className="mt-0.5 font-mono text-[10px] font-medium text-muted-foreground">
         {valid ? `$${fmtNumber(usd, metal.code === "HG" ? 4 : 2)} USD` : "Unavailable"}
+        {note && valid ? <span className="ml-1.5 text-muted-foreground/70">· {note}</span> : null}
       </div>
 
       {showKarats && metal.karats && valid ? (
@@ -305,9 +337,18 @@ function MetalCard({
             </div>
           ))}
         </div>
-      ) : showKarats ? (
-        <div className="mt-3 border-t border-border pt-3 text-center text-[10px] text-muted-foreground">
-          Real-time data
+      ) : null}
+
+      {extraRows && valid && extraRows.length > 0 ? (
+        <div className={cn("space-y-1", showKarats ? "mt-2" : "mt-3 border-t border-border pt-3")}>
+          {extraRows.map((r) => (
+            <div key={r.label} className="flex justify-between text-[11px] font-medium text-muted-foreground">
+              <span>{r.label}</span>
+              <span className="font-mono tabular text-foreground">
+                {fmtCurrency(r.value, currency, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          ))}
         </div>
       ) : null}
     </article>

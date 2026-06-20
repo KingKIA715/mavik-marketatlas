@@ -25,12 +25,30 @@ async function ratesFromExchangerateHost(): Promise<Rates> {
 }
 
 export async function fetchRates(): Promise<{ data: Rates; source: string }> {
-  try {
-    return { data: await ratesFromFrankfurter(), source: "Frankfurter (ECB)" };
-  } catch (e) {
-    console.warn("[currency] primary failed:", e);
-    return { data: await ratesFromExchangerateHost(), source: "ExchangeRate-API" };
+  // Frankfurter (ECB) is authoritative but omits pegged currencies like AED.
+  // ExchangeRate-API covers AED + many emerging-market currencies.
+  // Run both in parallel and merge — Frankfurter wins for overlapping codes.
+  const [primary, backup] = await Promise.allSettled([
+    ratesFromFrankfurter(),
+    ratesFromExchangerateHost(),
+  ]);
+
+  if (primary.status === "fulfilled" && backup.status === "fulfilled") {
+    return {
+      data: {
+        base: "USD",
+        rates: { ...backup.value.rates, ...primary.value.rates },
+      },
+      source: "Frankfurter + ExchangeRate-API",
+    };
   }
+  if (primary.status === "fulfilled") {
+    return { data: primary.value, source: "Frankfurter (ECB)" };
+  }
+  if (backup.status === "fulfilled") {
+    return { data: backup.value, source: "ExchangeRate-API" };
+  }
+  throw new Error("All FX providers failed");
 }
 
 /* -------------------------------------------------------------- METALS -- */
