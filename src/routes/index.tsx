@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import {
   COUNTRIES,
@@ -11,14 +11,14 @@ import {
   type CountryCode,
 } from "@/lib/market-config";
 import { getMarketSnapshot, type MarketSnapshot } from "@/lib/market.functions";
-import { fmtCurrency, fmtNumber, fmtPct, fmtTime } from "@/lib/format";
+import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
     queryKey: ["market-snapshot"],
     queryFn: fetcher,
-    staleTime: 60 * 60 * 1000, // 1h client cache
+    staleTime: 60 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
 
@@ -50,80 +50,94 @@ function Dashboard() {
   const [country, setCountry] = useState<CountryCode>("IN");
   const def = COUNTRIES[country];
 
-  // 1 USD = rate[CCY]
   const usdTo = (ccy: string) => data.rates.rates[ccy] ?? NaN;
   const toLocal = (usd: number) => usd * usdTo(def.currency);
 
   return (
-    <div className="relative z-10 mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
-      <Header
-        fetchedAt={data.fetchedAt}
-        sources={[data.metalsSource, data.ratesSource, data.quotesSource]}
-      />
+    <div className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6 sm:pt-12">
+        <Header fetchedAt={data.fetchedAt} />
 
-      <CountryStrip current={country} onChange={setCountry} />
+        <CountryStrip current={country} onChange={setCountry} />
 
-      <section className="mt-12">
-        <SectionTitle eyebrow="01" title="Precious metals & copper" />
-        <MetalsGrid
-          country={country}
-          metals={data.metals}
-          toLocal={toLocal}
-          currency={def.currency}
+        <section className="mt-10">
+          <SectionTitle title="Precious Metals" hint={`Per ${def.metalUnit} · ${def.currency}`} />
+          <MetalsGrid
+            country={country}
+            metals={data.metals}
+            toLocal={toLocal}
+            currency={def.currency}
+          />
+        </section>
+
+        <section className="mt-10">
+          <SectionTitle title="Stock Indices" hint="Global markets" />
+          <IndicesList quotes={data.quotes} country={country} />
+        </section>
+
+        <section className="mt-10">
+          <SectionTitle title="Currency Rates" hint={`1 ${def.currency} =`} />
+          <CurrencyPanel rates={data.rates.rates} base={def.currency} />
+        </section>
+
+        <Footer
+          fetchedAt={data.fetchedAt}
+          sources={[data.metalsSource, data.ratesSource, data.quotesSource]}
         />
-      </section>
-
-      <section className="mt-16">
-        <SectionTitle eyebrow="02" title="Stock indices" />
-        <IndicesGrid quotes={data.quotes} country={country} />
-      </section>
-
-      <section className="mt-16">
-        <SectionTitle eyebrow="03" title="Currency exchange" subtitle={`1 ${def.currency} =`} />
-        <CurrencyTable rates={data.rates.rates} base={def.currency} />
-      </section>
-
-      <Footer />
+      </div>
     </div>
   );
 }
 
-/* --------------------------------------------------------------- HEADER -- */
+/* ---------------- HEADER ---------------- */
 
-function Header({ fetchedAt, sources }: { fetchedAt: string; sources: string[] }) {
+function ClientDate({ iso }: { iso: string }) {
+  const [text, setText] = useState<string>("");
+  useEffect(() => {
+    setText(
+      new Date(iso).toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+    );
+  }, [iso]);
+  // suppressHydrationWarning so SSR's empty string can be replaced on mount
   return (
-    <header className="border-b border-border pb-8">
-      <div className="flex items-end justify-between gap-6">
-        <div>
-          <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-muted-foreground">
-            Vol. 1 · No. 01 · {new Date(fetchedAt).toLocaleDateString(undefined, {
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </p>
-          <h1 className="font-serif text-5xl leading-[0.95] tracking-tight text-foreground sm:text-7xl">
-            Market<span className="text-[color:var(--gold)]">Atlas</span>
-          </h1>
-          <p className="mt-3 max-w-xl text-sm text-muted-foreground">
-            A quiet, daily ledger of metals, indices and exchange rates from around the world.
-          </p>
-        </div>
-        <div className="hidden text-right sm:block">
-          <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-            Last fetched
-          </p>
-          <p className="font-mono text-sm text-foreground">{fmtTime(fetchedAt)}</p>
-          <p className="mt-2 max-w-[14rem] text-[11px] leading-snug text-muted-foreground">
-            {sources.join(" · ")}
-          </p>
+    <span suppressHydrationWarning>{text || "\u00A0"}</span>
+  );
+}
+
+function Header({ fetchedAt }: { fetchedAt: string }) {
+  return (
+    <header className="flex items-end justify-between gap-4">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
+          Market<span className="text-[color:var(--brand)]">Atlas</span>
+        </h1>
+        <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+          Global real-time commodity and index tracker.
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">
+          <ClientDate iso={fetchedAt} />
+        </p>
+        <div className="mt-1 inline-flex items-center gap-1.5">
+          <span className="relative flex h-1.5 w-1.5">
+            <span className="absolute inset-0 animate-ping rounded-full bg-[color:var(--positive)] opacity-60" />
+            <span className="relative h-1.5 w-1.5 rounded-full bg-[color:var(--positive)]" />
+          </span>
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+            Live
+          </span>
         </div>
       </div>
     </header>
   );
 }
 
-/* ---------------------------------------------------------- COUNTRY BAR -- */
+/* ---------------- COUNTRY STRIP ---------------- */
 
 function CountryStrip({
   current,
@@ -133,10 +147,7 @@ function CountryStrip({
   onChange: (c: CountryCode) => void;
 }) {
   return (
-    <nav className="mt-8 flex flex-wrap items-center gap-2">
-      <span className="mr-2 font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-        View as
-      </span>
+    <div className="no-scrollbar mt-6 -mx-4 flex gap-2 overflow-x-auto px-4 pb-1 sm:mx-0 sm:px-0">
       {Object.values(COUNTRIES).map((c) => {
         const active = c.code === current;
         return (
@@ -144,18 +155,18 @@ function CountryStrip({
             key={c.code}
             onClick={() => onChange(c.code)}
             className={cn(
-              "group inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm transition-all",
+              "flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-medium transition-all",
               active
-                ? "border-foreground bg-foreground text-background"
-                : "border-border bg-card text-foreground/80 hover:border-foreground/50",
+                ? "border-[color:var(--ink)] bg-[color:var(--ink)] text-white shadow-sm"
+                : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
             )}
           >
-            <span className="text-base leading-none">{c.flag}</span>
-            <span className="font-medium">{c.name}</span>
+            <span className="text-sm leading-none">{c.flag}</span>
+            <span>{c.name}</span>
             <span
               className={cn(
-                "font-mono text-[10px] tracking-wider",
-                active ? "text-background/70" : "text-muted-foreground",
+                "font-mono text-[9px] tracking-wider",
+                active ? "text-white/60" : "text-muted-foreground/70",
               )}
             >
               {c.currency}
@@ -163,37 +174,29 @@ function CountryStrip({
           </button>
         );
       })}
-    </nav>
-  );
-}
-
-/* ----------------------------------------------------------- SECTION -- */
-
-function SectionTitle({
-  eyebrow,
-  title,
-  subtitle,
-}: {
-  eyebrow: string;
-  title: string;
-  subtitle?: string;
-}) {
-  return (
-    <div className="mb-6 flex items-baseline justify-between gap-4 border-b border-border pb-3">
-      <div className="flex items-baseline gap-4">
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-[color:var(--gold)]">
-          {eyebrow}
-        </span>
-        <h2 className="font-serif text-2xl leading-none text-foreground sm:text-3xl">{title}</h2>
-      </div>
-      {subtitle ? (
-        <span className="font-mono text-xs text-muted-foreground">{subtitle}</span>
-      ) : null}
     </div>
   );
 }
 
-/* ------------------------------------------------------------ METALS -- */
+/* ---------------- SECTION TITLE ---------------- */
+
+function SectionTitle({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3">
+      <h2 className="text-sm font-bold uppercase tracking-wide text-foreground">{title}</h2>
+      {hint ? <span className="text-[10px] text-muted-foreground">{hint}</span> : null}
+    </div>
+  );
+}
+
+/* ---------------- METALS ---------------- */
+
+const METAL_BADGE: Record<string, string> = {
+  XAU: "bg-amber-50 text-amber-700",
+  XAG: "bg-slate-100 text-slate-600",
+  XPT: "bg-slate-100 text-slate-500",
+  HG: "bg-orange-50 text-orange-700",
+};
 
 function MetalsGrid({
   country,
@@ -207,70 +210,146 @@ function MetalsGrid({
   currency: string;
 }) {
   const unit = COUNTRIES[country].metalUnit;
+  const gold = METALS.find((m) => m.code === "XAU")!;
+  const silver = METALS.find((m) => m.code === "XAG")!;
+  const platinum = METALS.find((m) => m.code === "XPT")!;
+  const copper = METALS.find((m) => m.code === "HG")!;
+
+  const perUnit = (usdOz: number) =>
+    unit === "gram" ? usdOz / GRAMS_PER_TROY_OUNCE : usdOz;
+
   return (
-    <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
-      {METALS.map((m) => {
-        const usdPerOunce = metals[m.code];
-        const usdPerUnit = unit === "gram" ? usdPerOunce / GRAMS_PER_TROY_OUNCE : usdPerOunce;
-        const local = toLocal(usdPerUnit);
-        return (
-          <article key={m.code} className="bg-card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p
-                  className="font-mono text-[10px] uppercase tracking-[0.25em]"
-                  style={{ color: `var(--${m.tint})` }}
-                >
-                  {m.symbol} · {m.code}
-                </p>
-                <h3 className="mt-1 font-serif text-2xl text-foreground">{m.name}</h3>
-              </div>
-              <span className="font-mono text-[10px] text-muted-foreground">
-                per {unit}
-              </span>
-            </div>
+    <div className="space-y-3">
+      {/* Top row: Gold (large) + Silver */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <MetalCard
+          metal={gold}
+          usd={perUnit(metals[gold.code])}
+          local={toLocal(perUnit(metals[gold.code]))}
+          currency={currency}
+          unit={unit}
+          showKarats
+        />
+        <MetalCard
+          metal={silver}
+          usd={perUnit(metals[silver.code])}
+          local={toLocal(perUnit(metals[silver.code]))}
+          currency={currency}
+          unit={unit}
+        />
+      </div>
 
-            <p className="mt-5 font-mono text-2xl tabular text-foreground">
-              {fmtCurrency(local, currency, { maximumFractionDigits: m.code === "HG" ? 3 : 2 })}
-            </p>
-            <p className="mt-1 font-mono text-[11px] text-muted-foreground">
-              ${fmtNumber(usdPerUnit, m.code === "HG" ? 4 : 2)} USD
-            </p>
-
-            {m.karats ? (
-              <div className="mt-5 space-y-1.5 border-t border-border pt-4">
-                {m.karats.map((k) => {
-                  const priceK = local * KARAT_PURITY[k];
-                  return (
-                    <div key={k} className="flex items-baseline justify-between">
-                      <span className="font-mono text-[11px] uppercase tracking-wider text-muted-foreground">
-                        {k}K
-                      </span>
-                      <span className="font-mono text-sm tabular text-foreground">
-                        {fmtCurrency(priceK, currency, { maximumFractionDigits: 0 })}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : null}
-          </article>
-        );
-      })}
+      {/* Bottom row: compact platinum + copper */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <MetalChip
+          metal={platinum}
+          local={toLocal(perUnit(metals[platinum.code]))}
+          currency={currency}
+        />
+        <MetalChip
+          metal={copper}
+          local={toLocal(perUnit(metals[copper.code]))}
+          currency={currency}
+        />
+      </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------- INDICES -- */
+function MetalCard({
+  metal,
+  usd,
+  local,
+  currency,
+  unit,
+  showKarats = false,
+}: {
+  metal: (typeof METALS)[number];
+  usd: number;
+  local: number;
+  currency: string;
+  unit: "gram" | "ounce";
+  showKarats?: boolean;
+}) {
+  const valid = Number.isFinite(local) && local > 0;
+  return (
+    <article className="rounded-2xl border border-border bg-surface-alt p-4 transition-colors hover:border-muted-foreground/30">
+      <div className="mb-2 flex items-start justify-between">
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider",
+            METAL_BADGE[metal.code] ?? "bg-slate-100 text-slate-600",
+          )}
+        >
+          {metal.name}
+        </span>
+        <span className="font-mono text-[10px] font-medium text-muted-foreground">
+          {metal.symbol} · per {unit}
+        </span>
+      </div>
+      <div className="font-mono text-xl font-bold text-foreground tabular sm:text-2xl">
+        {valid ? fmtCurrency(local, currency, { maximumFractionDigits: metal.code === "HG" ? 3 : 2 }) : "—"}
+      </div>
+      <div className="mt-0.5 font-mono text-[10px] font-medium text-muted-foreground">
+        {valid ? `$${fmtNumber(usd, metal.code === "HG" ? 4 : 2)} USD` : "Unavailable"}
+      </div>
 
-function IndicesGrid({
+      {showKarats && metal.karats && valid ? (
+        <div className="mt-3 space-y-1 border-t border-border pt-3">
+          {metal.karats.map((k) => (
+            <div key={k} className="flex justify-between text-[11px] font-medium text-muted-foreground">
+              <span className="font-mono">{k}K</span>
+              <span className="font-mono tabular text-foreground">
+                {fmtCurrency(local * KARAT_PURITY[k], currency, { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          ))}
+        </div>
+      ) : showKarats ? (
+        <div className="mt-3 border-t border-border pt-3 text-center text-[10px] text-muted-foreground">
+          Real-time data
+        </div>
+      ) : null}
+    </article>
+  );
+}
+
+function MetalChip({
+  metal,
+  local,
+  currency,
+}: {
+  metal: (typeof METALS)[number];
+  local: number;
+  currency: string;
+}) {
+  const valid = Number.isFinite(local) && local > 0;
+  return (
+    <div className="flex items-center justify-between rounded-xl border border-border bg-surface-alt p-3">
+      <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+        {metal.name}
+      </span>
+      <span
+        className={cn(
+          "font-mono text-sm font-bold tabular",
+          valid ? "text-foreground" : "text-muted-foreground",
+        )}
+      >
+        {valid ? fmtCurrency(local, currency, { maximumFractionDigits: 2 }) : "No price"}
+      </span>
+    </div>
+  );
+}
+
+/* ---------------- INDICES ---------------- */
+
+function IndicesList({
   quotes,
   country,
 }: {
   quotes: MarketSnapshot["quotes"];
   country: CountryCode;
 }) {
-  // Order: home country first, then the rest
   const sorted = useMemo(() => {
     const home = COUNTRIES[country].stockIndices;
     return [...quotes].sort((a, b) => {
@@ -281,55 +360,56 @@ function IndicesGrid({
   }, [quotes, country]);
 
   return (
-    <div className="grid gap-px overflow-hidden rounded-lg border border-border bg-border sm:grid-cols-2 lg:grid-cols-4">
+    <div className="space-y-2">
       {sorted.map((q) => {
         const def = STOCKS[q.ticker];
         const up = q.change >= 0;
+        const accent = up ? "var(--positive)" : "var(--negative)";
         return (
-          <article key={q.ticker} className="bg-card p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-muted-foreground">
-                  {def?.exchange ?? "—"} · {COUNTRIES[def?.country ?? "US"].flag}
-                </p>
-                <h3 className="mt-1 font-serif text-xl text-foreground">
+          <div
+            key={q.ticker}
+            className="flex items-center justify-between gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-shadow hover:shadow-md"
+          >
+            <div className="flex min-w-0 items-center gap-3">
+              <div
+                className="h-9 w-1 shrink-0 rounded-full"
+                style={{ background: accent }}
+              />
+              <div className="min-w-0">
+                <div className="truncate text-xs font-bold text-foreground sm:text-sm">
                   {def?.name ?? q.ticker}
-                </h3>
+                </div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                  {def?.exchange ?? "—"} · {COUNTRIES[def?.country ?? "US"].flag}{" "}
+                  {COUNTRIES[def?.country ?? "US"].name}
+                </div>
               </div>
-              <span
-                className={cn(
-                  "font-mono text-[11px] font-medium",
-                  up ? "text-[color:var(--positive)]" : "text-[color:var(--negative)]",
-                )}
-              >
-                {up ? "▲" : "▼"}
-              </span>
             </div>
-            <p className="mt-5 font-mono text-2xl tabular text-foreground">
-              {fmtNumber(q.price, 2)}
-              <span className="ml-1.5 font-sans text-[10px] uppercase tracking-wider text-muted-foreground">
-                {q.currency}
-              </span>
-            </p>
-            <p
-              className={cn(
-                "mt-1 font-mono text-xs",
-                up ? "text-[color:var(--positive)]" : "text-[color:var(--negative)]",
-              )}
-            >
-              {up ? "+" : ""}
-              {fmtNumber(q.change, 2)} · {fmtPct(q.changePercent)}
-            </p>
-          </article>
+            <div className="shrink-0 text-right">
+              <div className="font-mono text-xs font-bold text-foreground tabular sm:text-sm">
+                {fmtNumber(q.price, 2)}
+                <span className="ml-1 text-[9px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {q.currency}
+                </span>
+              </div>
+              <div
+                className="font-mono text-[10px] font-bold tabular"
+                style={{ color: accent }}
+              >
+                {up ? "▲ +" : "▼ "}
+                {fmtNumber(Math.abs(q.change), 2)} · {fmtPct(q.changePercent)}
+              </div>
+            </div>
+          </div>
         );
       })}
     </div>
   );
 }
 
-/* ----------------------------------------------------------- CURRENCY -- */
+/* ---------------- CURRENCY ---------------- */
 
-function CurrencyTable({
+function CurrencyPanel({
   rates,
   base,
 }: {
@@ -337,56 +417,75 @@ function CurrencyTable({
   base: string;
 }) {
   const baseRate = rates[base];
-  // 1 base = (rates[ccy] / rates[base]) ccy
-  const featured = ["USD", "EUR", "GBP", "JPY", "AED", "INR", "CNY", "AUD", "CAD", "CHF", "SGD", "HKD"];
+  const featured = [
+    "USD",
+    "EUR",
+    "GBP",
+    "JPY",
+    "AED",
+    "INR",
+    "CNY",
+    "AUD",
+    "CAD",
+    "CHF",
+    "SGD",
+    "HKD",
+  ];
   const list = featured.filter((c) => c !== base && rates[c]);
 
   return (
-    <div className="overflow-hidden rounded-lg border border-border">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-border bg-secondary/40 text-left font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
-            <th className="px-4 py-2.5 font-medium">Currency</th>
-            <th className="px-4 py-2.5 text-right font-medium">Rate</th>
-            <th className="hidden px-4 py-2.5 text-right font-medium sm:table-cell">
-              Inverse
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((ccy) => {
-            const perBase = rates[ccy] / baseRate;
-            const inverse = 1 / perBase;
-            return (
-              <tr key={ccy} className="border-b border-border last:border-0 odd:bg-card">
-                <td className="px-4 py-3">
-                  <span className="font-mono text-xs uppercase tracking-wider text-muted-foreground">
-                    {ccy}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-right font-mono tabular text-foreground">
-                  {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-                </td>
-                <td className="hidden px-4 py-3 text-right font-mono tabular text-muted-foreground sm:table-cell">
-                  {fmtNumber(inverse, inverse < 1 ? 4 : 2)} {base}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+    <div className="rounded-2xl bg-[color:var(--ink)] p-4 text-white shadow-lg sm:p-5">
+      <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+        {list.map((ccy) => {
+          const perBase = rates[ccy] / baseRate;
+          return (
+            <div
+              key={ccy}
+              className="flex items-baseline justify-between border-b border-white/10 pb-2"
+            >
+              <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+                {ccy}
+              </span>
+              <span className="font-mono text-xs font-medium tabular text-white">
+                {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-/* ------------------------------------------------------------- FOOTER -- */
+/* ---------------- FOOTER ---------------- */
 
-function Footer() {
+function Footer({
+  fetchedAt,
+  sources,
+}: {
+  fetchedAt: string;
+  sources: string[];
+}) {
+  const [timeText, setTimeText] = useState<string>("");
+  useEffect(() => {
+    setTimeText(
+      new Date(fetchedAt).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+    );
+  }, [fetchedAt]);
+
   return (
-    <footer className="mt-20 border-t border-border pt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3 font-mono text-[11px] text-muted-foreground">
-        <span>© MarketAtlas — built on Lovable Cloud</span>
-        <span>Data cached hourly · refreshes on next visit</span>
+    <footer className="mt-12 border-t border-border pt-5">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-muted-foreground">
+        <span className="font-medium">© MarketAtlas · built on Lovable Cloud</span>
+        <span suppressHydrationWarning className="font-mono">
+          Updated {timeText || "—"} · cached hourly
+        </span>
+      </div>
+      <div className="mt-1.5 font-mono text-[9px] text-muted-foreground/70">
+        Sources: {sources.join(" · ")}
       </div>
     </footer>
   );
