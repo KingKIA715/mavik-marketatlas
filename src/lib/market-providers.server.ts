@@ -1,11 +1,11 @@
-// Provider adapters for metals, currency, stocks — with primary/backup failover.
-// All return USD-denominated raw values; UI converts to display currency.
+// Provider adapters for metals, currency, stocks, crude oil + history.
+// All raw values are USD; UI converts to display currency.
 
 /* ----------------------------------------------------------- CURRENCY -- */
 
 export interface Rates {
   base: "USD";
-  rates: Record<string, number>; // 1 USD = rates[CCY]
+  rates: Record<string, number>;
 }
 
 async function ratesFromFrankfurter(): Promise<Rates> {
@@ -13,7 +13,7 @@ async function ratesFromFrankfurter(): Promise<Rates> {
     headers: { accept: "application/json" },
   });
   if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
-  const json = (await res.json()) as { base: string; rates: Record<string, number> };
+  const json = (await res.json()) as { rates: Record<string, number> };
   return { base: "USD", rates: { ...json.rates, USD: 1 } };
 }
 
@@ -25,45 +25,31 @@ async function ratesFromExchangerateHost(): Promise<Rates> {
 }
 
 export async function fetchRates(): Promise<{ data: Rates; source: string }> {
-  // Frankfurter (ECB) is authoritative but omits pegged currencies like AED.
-  // ExchangeRate-API covers AED + many emerging-market currencies.
-  // Run both in parallel and merge — Frankfurter wins for overlapping codes.
   const [primary, backup] = await Promise.allSettled([
     ratesFromFrankfurter(),
     ratesFromExchangerateHost(),
   ]);
-
   if (primary.status === "fulfilled" && backup.status === "fulfilled") {
     return {
-      data: {
-        base: "USD",
-        rates: { ...backup.value.rates, ...primary.value.rates },
-      },
+      data: { base: "USD", rates: { ...backup.value.rates, ...primary.value.rates } },
       source: "Frankfurter + ExchangeRate-API",
     };
   }
-  if (primary.status === "fulfilled") {
-    return { data: primary.value, source: "Frankfurter (ECB)" };
-  }
-  if (backup.status === "fulfilled") {
-    return { data: backup.value, source: "ExchangeRate-API" };
-  }
+  if (primary.status === "fulfilled") return { data: primary.value, source: "Frankfurter (ECB)" };
+  if (backup.status === "fulfilled") return { data: backup.value, source: "ExchangeRate-API" };
   throw new Error("All FX providers failed");
 }
 
 /* -------------------------------------------------------------- METALS -- */
 
 export interface MetalPrices {
-  // USD per troy ounce
-  XAU: number;
+  XAU: number; // USD/oz
   XAG: number;
   XPT: number;
-  HG: number; // copper — per pound from most APIs; we normalize to per-ounce equivalent
 }
 
 async function metalsFromGoldApi(): Promise<MetalPrices> {
-  // gold-api.com — free, no key. One request per metal.
-  const codes = ["XAU", "XAG", "XPT", "HG"] as const;
+  const codes = ["XAU", "XAG", "XPT"] as const;
   const out: Partial<MetalPrices> = {};
   await Promise.all(
     codes.map(async (c) => {
@@ -80,19 +66,13 @@ async function metalsFromMetalpriceApi(key: string): Promise<MetalPrices> {
   const res = await fetch(
     `https://api.metalpriceapi.com/v1/latest?api_key=${encodeURIComponent(
       key,
-    )}&base=USD&currencies=XAU,XAG,XPT,HG`,
+    )}&base=USD&currencies=XAU,XAG,XPT`,
   );
   if (!res.ok) throw new Error(`metalpriceapi ${res.status}`);
-  const json = (await res.json()) as { success?: boolean; rates?: Record<string, number> };
+  const json = (await res.json()) as { rates?: Record<string, number> };
   if (!json.rates) throw new Error("metalpriceapi: no rates");
-  // rates are quoted as 1 USD = X metal — invert to USD/oz
   const inv = (v: number) => (v > 0 ? 1 / v : NaN);
-  return {
-    XAU: inv(json.rates.XAU),
-    XAG: inv(json.rates.XAG),
-    XPT: inv(json.rates.XPT),
-    HG: inv(json.rates.HG),
-  };
+  return { XAU: inv(json.rates.XAU), XAG: inv(json.rates.XAG), XPT: inv(json.rates.XPT) };
 }
 
 export async function fetchMetals(): Promise<{ data: MetalPrices; source: string }> {
@@ -107,7 +87,12 @@ export async function fetchMetals(): Promise<{ data: MetalPrices; source: string
   return { data: await metalsFromGoldApi(), source: "gold-api.com" };
 }
 
-/* -------------------------------------------------------------- STOCKS -- */
+/* --------------------------------------------------------------- YAHOO --- */
+
+const YAHOO_HEADERS = {
+  "user-agent": "Mozilla/5.0 (compatible; MarketAtlas/1.0; +https://lovable.dev)",
+  accept: "application/json",
+};
 
 export interface Quote {
   ticker: string;
@@ -122,13 +107,7 @@ async function quoteFromYahoo(ticker: string): Promise<Quote> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
     ticker,
   )}?interval=1d&range=5d`;
-  const res = await fetch(url, {
-    headers: {
-      "user-agent":
-        "Mozilla/5.0 (compatible; MarketAtlas/1.0; +https://lovable.dev)",
-      accept: "application/json",
-    },
-  });
+  const res = await fetch(url, { headers: YAHOO_HEADERS });
   if (!res.ok) throw new Error(`yahoo ${ticker} ${res.status}`);
   const json = (await res.json()) as {
     chart: {
@@ -140,7 +119,6 @@ async function quoteFromYahoo(ticker: string): Promise<Quote> {
           currency: string;
         };
       }>;
-      error?: { description?: string } | null;
     };
   };
   const r = json.chart.result?.[0];
@@ -158,12 +136,71 @@ async function quoteFromYahoo(ticker: string): Promise<Quote> {
   };
 }
 
-export async function fetchQuotes(
-  tickers: string[],
-): Promise<{ data: Quote[]; source: string }> {
+export async function fetchQuotes(tickers: string[]): Promise<{ data: Quote[]; source: string }> {
   const settled = await Promise.allSettled(tickers.map(quoteFromYahoo));
   const data = settled
     .filter((s): s is PromiseFulfilledResult<Quote> => s.status === "fulfilled")
     .map((s) => s.value);
+  return { data, source: "Yahoo Finance" };
+}
+
+/* ----------------------------------------------------------- CRUDE OIL --- */
+
+export interface Crude {
+  pricePerBarrelUSD: number;
+  change: number;
+  changePercent: number;
+}
+
+export async function fetchCrude(): Promise<{ data: Crude; source: string }> {
+  try {
+    const q = await quoteFromYahoo("CL=F");
+    return {
+      data: { pricePerBarrelUSD: q.price, change: q.change, changePercent: q.changePercent },
+      source: "Yahoo Finance (CL=F)",
+    };
+  } catch (e) {
+    console.warn("[crude] failed:", e);
+    return { data: { pricePerBarrelUSD: NaN, change: 0, changePercent: 0 }, source: "unavailable" };
+  }
+}
+
+/* ----------------------------------------------------------- HISTORY ----- */
+
+export interface HistoryPoint {
+  date: string; // ISO yyyy-mm-dd
+  close: number;
+}
+
+export async function fetchHistory(
+  yahooSymbol: string,
+  range = "5y",
+  interval = "1mo",
+): Promise<{ data: HistoryPoint[]; source: string }> {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+    yahooSymbol,
+  )}?interval=${interval}&range=${range}`;
+  const res = await fetch(url, { headers: YAHOO_HEADERS });
+  if (!res.ok) throw new Error(`yahoo history ${yahooSymbol} ${res.status}`);
+  const json = (await res.json()) as {
+    chart: {
+      result?: Array<{
+        timestamp: number[];
+        indicators: { quote: Array<{ close: (number | null)[] }> };
+      }>;
+    };
+  };
+  const r = json.chart.result?.[0];
+  if (!r) throw new Error(`yahoo history ${yahooSymbol}: no result`);
+  const closes = r.indicators.quote[0].close;
+  const data: HistoryPoint[] = [];
+  for (let i = 0; i < r.timestamp.length; i++) {
+    const c = closes[i];
+    if (c == null) continue;
+    data.push({
+      date: new Date(r.timestamp[i] * 1000).toISOString().slice(0, 10),
+      close: c,
+    });
+  }
   return { data, source: "Yahoo Finance" };
 }
