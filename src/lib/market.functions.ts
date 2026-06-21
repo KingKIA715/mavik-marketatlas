@@ -5,10 +5,15 @@ import {
   fetchMetals,
   fetchQuotes,
   fetchRates,
+  fetchCrude,
+  fetchHistory,
+  type Crude,
+  type HistoryPoint,
   type MetalPrices,
   type Quote,
   type Rates,
 } from "./market-providers.server";
+import { COUNTRIES } from "./market-config";
 
 export interface MarketSnapshot {
   fetchedAt: string;
@@ -16,34 +21,43 @@ export interface MarketSnapshot {
   ratesSource: string;
   metals: MetalPrices;
   metalsSource: string;
+  /** Major indices (one fetch shared across countries). */
   quotes: Quote[];
   quotesSource: string;
+  /** Per-country basket quotes for top gainers/losers. */
+  baskets: Record<string, Quote[]>;
+  crude: Crude;
+  crudeSource: string;
 }
 
-const TICKERS = [
-  "^NSEI",
-  "^BSESN",
-  "^GSPC",
-  "^IXIC",
-  "^DJI",
-  "^FTSE",
-  "^DFMGI",
-  "^STOXX50E",
-];
+const ALL_INDICES = Array.from(
+  new Set(Object.values(COUNTRIES).flatMap((c) => c.stockIndices)),
+);
+
+const ALL_BASKET = Array.from(
+  new Set(Object.values(COUNTRIES).flatMap((c) => c.stockBasket)),
+);
 
 export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
   async (): Promise<MarketSnapshot> => {
-    // 1h browser cache too — UI revalidates on focus.
     setResponseHeader(
       "cache-control",
-      "public, max-age=3600, stale-while-revalidate=86400",
+      "public, max-age=900, stale-while-revalidate=86400",
     );
 
-    const [ratesR, metalsR, quotesR] = await Promise.all([
+    const [ratesR, metalsR, indicesR, basketR, crudeR] = await Promise.all([
       cached("rates", ONE_HOUR, fetchRates),
       cached("metals", ONE_HOUR, fetchMetals),
-      cached("quotes", FIFTEEN_MIN, () => fetchQuotes(TICKERS)),
+      cached("indices", FIFTEEN_MIN, () => fetchQuotes(ALL_INDICES)),
+      cached("basket", FIFTEEN_MIN, () => fetchQuotes(ALL_BASKET)),
+      cached("crude", FIFTEEN_MIN, fetchCrude),
     ]);
+
+    // Group basket results per country
+    const baskets: Record<string, Quote[]> = {};
+    for (const [code, def] of Object.entries(COUNTRIES)) {
+      baskets[code] = basketR.data.filter((q) => def.stockBasket.includes(q.ticker));
+    }
 
     return {
       fetchedAt: new Date().toISOString(),
@@ -51,8 +65,25 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
       ratesSource: ratesR.source,
       metals: metalsR.data,
       metalsSource: metalsR.source,
-      quotes: quotesR.data,
-      quotesSource: quotesR.source,
+      quotes: indicesR.data,
+      quotesSource: indicesR.source,
+      baskets,
+      crude: crudeR.data,
+      crudeSource: crudeR.source,
     };
   },
 );
+
+/* ----------------------------- Metal history (lazy) ----------------------- */
+
+export const getMetalHistory = createServerFn({ method: "GET" })
+  .inputValidator((data: { symbol: string }) => {
+    if (!/^[A-Z]{1,3}=F$/.test(data.symbol)) {
+      throw new Error("Invalid symbol");
+    }
+    return data;
+  })
+  .handler(async ({ data }): Promise<{ data: HistoryPoint[]; source: string }> => {
+    setResponseHeader("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
+    return cached(`hist:${data.symbol}`, 24 * ONE_HOUR, () => fetchHistory(data.symbol, "5y", "1mo"));
+  });
