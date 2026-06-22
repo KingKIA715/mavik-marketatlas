@@ -40,6 +40,22 @@ export async function fetchRates(): Promise<{ data: Rates; source: string }> {
   throw new Error("All FX providers failed");
 }
 
+/** Yesterday's USD rates (most recent business day before today) for 24h FX change. */
+export async function fetchRatesYesterday(): Promise<Rates> {
+  // Frankfurter "?base=USD" without a date returns latest; using a date in URL.
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - 1);
+  const iso = d.toISOString().slice(0, 10);
+  try {
+    const res = await fetch(`https://api.frankfurter.dev/v1/${iso}?base=USD`);
+    if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
+    const json = (await res.json()) as { rates: Record<string, number> };
+    return { base: "USD", rates: { ...json.rates, USD: 1 } };
+  } catch {
+    return { base: "USD", rates: { USD: 1 } };
+  }
+}
+
 /* -------------------------------------------------------------- METALS -- */
 
 export interface MetalPrices {
