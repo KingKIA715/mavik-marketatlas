@@ -298,4 +298,16 @@ export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
     lpgDomestic: { price: 75, unit: "cylinder" },
     lpgCommercial: { price: 290, unit: "cylinder (bulk)" },
   },
+  JP: {
+    petrol: 175,
+    diesel: 155,
+    lpgDomestic: { price: 500, unit: "10 kg cylinder" },
+    lpgCommercial: { price: 850, unit: "20 kg cylinder" },
+  },
+  CN: {
+    petrol: 8.2,
+    diesel: 7.5,
+    lpgDomestic: { price: 110, unit: "14.5 kg cylinder" },
+    lpgCommercial: { price: 220, unit: "30 kg cylinder" },
+  },
 };
