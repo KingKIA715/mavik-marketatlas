@@ -330,6 +330,7 @@ function SectionHeader({
 function PreciousMetals({
   country,
   metals,
+  metalsChange,
   toLocal,
   fx,
   currency,
@@ -338,6 +339,7 @@ function PreciousMetals({
 }: {
   country: CountryCode;
   metals: MarketSnapshot["metals"];
+  metalsChange: MarketSnapshot["metalsChange"];
   toLocal: (usd: number) => number;
   fx: number;
   currency: string;
@@ -348,7 +350,6 @@ function PreciousMetals({
   const premium = RETAIL_PREMIUM[country];
   const gstMul = country === "IN" && includeGST ? 1 + INDIA_GST : 1;
 
-  /** Local price per gram of metal, with regional duty + optional GST. */
   const localPerGram = (code: MetalCode) => {
     const spotUsdOz = metals[code];
     const spotUsdG = spotUsdOz / GRAMS_PER_TROY_OUNCE;
@@ -383,6 +384,7 @@ function PreciousMetals({
             yahooSymbol={m.yahoo}
             karats={m.karats}
             perGram={localPerGram(m.code)}
+            changePercent={metalsChange[m.code]?.changePercent ?? 0}
             currency={currency}
             country={country}
             fx={fx}
