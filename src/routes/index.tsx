@@ -761,12 +761,14 @@ function Gasoline({
           value={fuel.petrol}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
+          changePercent={crude.changePercent}
         />
         <FuelTile
           label="Diesel"
           value={fuel.diesel}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
+          changePercent={crude.changePercent}
         />
         <FuelTile
           label="LPG (Domestic)"
