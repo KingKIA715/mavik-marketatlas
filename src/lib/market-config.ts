@@ -133,7 +133,17 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
   },
 };
 
-export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "EU", "GB", "AE"];
+export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "GB", "EU", "AE", "JP", "CN"];
+
+export const COUNTRY_SHORT: Record<CountryCode, string> = {
+  IN: "IN",
+  US: "USA",
+  GB: "UK",
+  EU: "EU",
+  AE: "UAE",
+  JP: "JP",
+  CN: "CN",
+};
 
 /**
  * Country-specific retail premium on global spot metal prices.
