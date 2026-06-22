@@ -1,6 +1,6 @@
 // MarketAtlas — countries, metals, stock universe, gasoline reference prices.
 
-export type CountryCode = "IN" | "US" | "EU" | "GB" | "AE";
+export type CountryCode = "IN" | "US" | "EU" | "GB" | "AE" | "JP" | "CN";
 
 export interface CountryDef {
   code: CountryCode;
