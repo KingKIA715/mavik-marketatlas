@@ -5,6 +5,7 @@ import {
   fetchMetals,
   fetchQuotes,
   fetchRates,
+  fetchRatesYesterday,
   fetchCrude,
   fetchHistory,
   type Crude,
@@ -13,13 +14,16 @@ import {
   type Quote,
   type Rates,
 } from "./market-providers.server";
-import { COUNTRIES } from "./market-config";
+import { COUNTRIES, type MetalCode } from "./market-config";
 
 export interface MarketSnapshot {
   fetchedAt: string;
   rates: Rates;
+  ratesYesterday: Rates;
   ratesSource: string;
   metals: MetalPrices;
+  /** 24h change for each metal (percent) derived from Yahoo futures. */
+  metalsChange: Record<MetalCode, { change: number; changePercent: number }>;
   metalsSource: string;
   /** Major indices (one fetch shared across countries). */
   quotes: Quote[];
@@ -38,6 +42,12 @@ const ALL_BASKET = Array.from(
   new Set(Object.values(COUNTRIES).flatMap((c) => c.stockBasket)),
 );
 
+const METAL_SYMBOLS: Record<MetalCode, string> = {
+  XAU: "GC=F",
+  XAG: "SI=F",
+  XPT: "PL=F",
+};
+
 export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
   async (): Promise<MarketSnapshot> => {
     setResponseHeader(
@@ -45,25 +55,36 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
       "public, max-age=900, stale-while-revalidate=86400",
     );
 
-    const [ratesR, metalsR, indicesR, basketR, crudeR] = await Promise.all([
+    const [ratesR, ratesYR, metalsR, indicesR, basketR, crudeR, metalQuotesR] = await Promise.all([
       cached("rates", ONE_HOUR, fetchRates),
+      cached("rates-yesterday", ONE_HOUR, fetchRatesYesterday),
       cached("metals", ONE_HOUR, fetchMetals),
       cached("indices", FIFTEEN_MIN, () => fetchQuotes(ALL_INDICES)),
       cached("basket", FIFTEEN_MIN, () => fetchQuotes(ALL_BASKET)),
       cached("crude", FIFTEEN_MIN, fetchCrude),
+      cached("metal-quotes", FIFTEEN_MIN, () => fetchQuotes(Object.values(METAL_SYMBOLS))),
     ]);
 
-    // Group basket results per country
     const baskets: Record<string, Quote[]> = {};
     for (const [code, def] of Object.entries(COUNTRIES)) {
       baskets[code] = basketR.data.filter((q) => def.stockBasket.includes(q.ticker));
     }
 
+    const metalsChange = {} as Record<MetalCode, { change: number; changePercent: number }>;
+    (Object.keys(METAL_SYMBOLS) as MetalCode[]).forEach((code) => {
+      const q = metalQuotesR.data.find((x) => x.ticker === METAL_SYMBOLS[code]);
+      metalsChange[code] = q
+        ? { change: q.change, changePercent: q.changePercent }
+        : { change: 0, changePercent: 0 };
+    });
+
     return {
       fetchedAt: new Date().toISOString(),
       rates: ratesR.data,
+      ratesYesterday: ratesYR,
       ratesSource: ratesR.source,
       metals: metalsR.data,
+      metalsChange,
       metalsSource: metalsR.source,
       quotes: indicesR.data,
       quotesSource: indicesR.source,

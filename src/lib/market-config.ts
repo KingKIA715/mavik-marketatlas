@@ -1,6 +1,6 @@
 // MarketAtlas — countries, metals, stock universe, gasoline reference prices.
 
-export type CountryCode = "IN" | "US" | "EU" | "GB" | "AE";
+export type CountryCode = "IN" | "US" | "EU" | "GB" | "AE" | "JP" | "CN";
 
 export interface CountryDef {
   code: CountryCode;
@@ -99,9 +99,51 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
     ],
     fuelVolumeUnit: "L",
   },
+  JP: {
+    code: "JP",
+    name: "Japan",
+    currency: "JPY",
+    symbol: "¥",
+    flag: "🇯🇵",
+    locale: "ja-JP",
+    displayCurrencies: ["JPY", "USD", "EUR", "GBP", "CNY", "AUD"],
+    metalUnit: "gram",
+    stockIndices: ["^N225", "^TPX"],
+    stockBasket: [
+      "7203.T", "6758.T", "9984.T", "6861.T", "8306.T",
+      "9432.T", "7974.T", "6098.T",
+    ],
+    fuelVolumeUnit: "L",
+  },
+  CN: {
+    code: "CN",
+    name: "China",
+    currency: "CNY",
+    symbol: "¥",
+    flag: "🇨🇳",
+    locale: "zh-CN",
+    displayCurrencies: ["CNY", "USD", "EUR", "JPY", "HKD", "GBP"],
+    metalUnit: "gram",
+    stockIndices: ["000001.SS", "^HSI"],
+    stockBasket: [
+      "601398.SS", "601857.SS", "600519.SS", "601318.SS",
+      "0700.HK", "9988.HK", "3690.HK", "0939.HK",
+    ],
+    fuelVolumeUnit: "L",
+  },
 };
 
-export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "EU", "GB", "AE"];
+export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "GB", "EU", "AE", "JP", "CN"];
+
+export const COUNTRY_SHORT: Record<CountryCode, string> = {
+  IN: "IN",
+  US: "USA",
+  GB: "UK",
+  EU: "EU",
+  AE: "UAE",
+  JP: "JP",
+  CN: "CN",
+};
 
 /**
  * Country-specific retail premium on global spot metal prices.
@@ -166,6 +208,10 @@ export const STOCKS: Record<string, StockDef> = {
   "^STOXX50E": { ticker: "^STOXX50E", name: "Euro Stoxx 50", exchange: "EU", country: "EU" },
   "^GDAXI": { ticker: "^GDAXI", name: "DAX 40", exchange: "XETRA", country: "EU" },
   "^FCHI": { ticker: "^FCHI", name: "CAC 40", exchange: "EPA", country: "EU" },
+  "^N225": { ticker: "^N225", name: "Nikkei 225", exchange: "TSE", country: "JP" },
+  "^TPX": { ticker: "^TPX", name: "TOPIX", exchange: "TSE", country: "JP" },
+  "000001.SS": { ticker: "000001.SS", name: "Shanghai Composite", exchange: "SSE", country: "CN" },
+  "^HSI": { ticker: "^HSI", name: "Hang Seng", exchange: "HKEX", country: "CN" },
 };
 
 /** Friendly names for basket tickers (best-effort; falls back to ticker). */
@@ -220,6 +266,22 @@ export const STOCK_NAMES: Record<string, string> = {
   "EMIRATESNBD.AE": "Emirates NBD",
   "FAB.AE": "First Abu Dhabi Bank",
   "ADCB.AE": "ADCB",
+  "7203.T": "Toyota Motor",
+  "6758.T": "Sony Group",
+  "9984.T": "SoftBank Group",
+  "6861.T": "Keyence",
+  "8306.T": "Mitsubishi UFJ",
+  "9432.T": "NTT",
+  "7974.T": "Nintendo",
+  "6098.T": "Recruit Holdings",
+  "601398.SS": "ICBC",
+  "601857.SS": "PetroChina",
+  "600519.SS": "Kweichow Moutai",
+  "601318.SS": "Ping An Insurance",
+  "0700.HK": "Tencent",
+  "9988.HK": "Alibaba",
+  "3690.HK": "Meituan",
+  "0939.HK": "China Construction Bank",
 };
 
 /* --------------------------------------------------------------- GASOLINE -- */
@@ -265,5 +327,17 @@ export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
     diesel: 3.2,
     lpgDomestic: { price: 75, unit: "cylinder" },
     lpgCommercial: { price: 290, unit: "cylinder (bulk)" },
+  },
+  JP: {
+    petrol: 175,
+    diesel: 155,
+    lpgDomestic: { price: 500, unit: "10 kg cylinder" },
+    lpgCommercial: { price: 850, unit: "20 kg cylinder" },
+  },
+  CN: {
+    petrol: 8.2,
+    diesel: 7.5,
+    lpgDomestic: { price: 110, unit: "14.5 kg cylinder" },
+    lpgCommercial: { price: 220, unit: "30 kg cylinder" },
   },
 };

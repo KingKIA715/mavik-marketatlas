@@ -5,6 +5,7 @@ import { useServerFn } from "@tanstack/react-start";
 import {
   COUNTRIES,
   COUNTRY_ORDER,
+  COUNTRY_SHORT,
   FUEL_REFERENCE,
   GRAMS_PER_KG,
   GRAMS_PER_SOVEREIGN,
@@ -82,14 +83,17 @@ function Dashboard() {
         fetchedAt={data.fetchedAt}
       />
 
+      <CountryPills country={country} onChange={setCountry} />
+
       <main
         suppressHydrationWarning
-        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-8 sm:px-6 sm:pt-10"
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
 
         <PreciousMetals
           country={country}
           metals={data.metals}
+          metalsChange={data.metalsChange}
           toLocal={toLocal}
           fx={fx}
           currency={def.currency}
@@ -110,7 +114,12 @@ function Dashboard() {
           currency={def.currency}
         />
 
-        <Currencies rates={data.rates.rates} base={def.currency} />
+        <Currencies
+          rates={data.rates.rates}
+          ratesYesterday={data.ratesYesterday.rates}
+          base={def.currency}
+          currency={def.currency}
+        />
 
         <Footer
           fetchedAt={data.fetchedAt}
@@ -123,6 +132,80 @@ function Dashboard() {
           }}
         />
       </main>
+    </div>
+  );
+}
+
+/* =====================================================================
+ * COUNTRY PILLS + CHANGE BADGE
+ * ===================================================================== */
+
+function CountryPills({
+  country,
+  onChange,
+}: {
+  country: CountryCode;
+  onChange: (c: CountryCode) => void;
+}) {
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto flex max-w-6xl gap-1.5 overflow-x-auto px-4 py-2.5 sm:px-6">
+        {COUNTRY_ORDER.map((c) => {
+          const cd = COUNTRIES[c];
+          const active = c === country;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(c)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                active
+                  ? "border-[color:var(--brand)] bg-[color:var(--brand)] text-white shadow-sm"
+                  : "border-border bg-background text-foreground hover:bg-surface-alt",
+              )}
+              aria-pressed={active}
+            >
+              <span aria-hidden>{cd.flag}</span>
+              <span>{COUNTRY_SHORT[c]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ChangeBadge({
+  change,
+  changePercent,
+  currency,
+  digits = 2,
+}: {
+  change: number;
+  changePercent: number;
+  currency?: string;
+  digits?: number;
+}) {
+  if (!Number.isFinite(changePercent) || (change === 0 && changePercent === 0)) {
+    return (
+      <div className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
+    );
+  }
+  const up = changePercent >= 0;
+  const arrow = up ? "▲" : "▼";
+  const sign = up ? "+" : "-";
+  const absChange = Math.abs(change);
+  const valueStr = currency
+    ? fmtCurrency(absChange, currency, { maximumFractionDigits: digits })
+    : fmtNumber(absChange, digits);
+  return (
+    <div
+      className="font-mono text-[12px] font-semibold tabular"
+      style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+    >
+      {arrow} {sign}
+      {valueStr} ({fmtPct(changePercent)})
     </div>
   );
 }
@@ -247,6 +330,7 @@ function SectionHeader({
 function PreciousMetals({
   country,
   metals,
+  metalsChange,
   toLocal,
   fx,
   currency,
@@ -255,6 +339,7 @@ function PreciousMetals({
 }: {
   country: CountryCode;
   metals: MarketSnapshot["metals"];
+  metalsChange: MarketSnapshot["metalsChange"];
   toLocal: (usd: number) => number;
   fx: number;
   currency: string;
@@ -265,7 +350,6 @@ function PreciousMetals({
   const premium = RETAIL_PREMIUM[country];
   const gstMul = country === "IN" && includeGST ? 1 + INDIA_GST : 1;
 
-  /** Local price per gram of metal, with regional duty + optional GST. */
   const localPerGram = (code: MetalCode) => {
     const spotUsdOz = metals[code];
     const spotUsdG = spotUsdOz / GRAMS_PER_TROY_OUNCE;
@@ -300,6 +384,7 @@ function PreciousMetals({
             yahooSymbol={m.yahoo}
             karats={m.karats}
             perGram={localPerGram(m.code)}
+            changePercent={metalsChange[m.code]?.changePercent ?? 0}
             currency={currency}
             country={country}
             fx={fx}
@@ -322,6 +407,7 @@ function MetalRow({
   yahooSymbol,
   karats,
   perGram,
+  changePercent,
   currency,
   country,
   fx,
@@ -331,6 +417,7 @@ function MetalRow({
   yahooSymbol: string;
   karats?: number[];
   perGram: number;
+  changePercent: number;
   currency: string;
   country: CountryCode;
   fx: number;
@@ -339,13 +426,16 @@ function MetalRow({
   const def = COUNTRIES[country];
   const valid = Number.isFinite(perGram) && perGram > 0;
 
-  // Display unit logic
-  const showPerGram = def.metalUnit === "gram" || metalCode === "XAU"; // gold per gram useful everywhere
+  const showPerGram = def.metalUnit === "gram" || metalCode === "XAU";
   const showPerOunce = def.metalUnit === "ounce";
   const isGold = metalCode === "XAU";
   const perOunce = perGram * GRAMS_PER_TROY_OUNCE;
   const perKg = perGram * GRAMS_PER_KG;
-  const perSovereign = perGram * GRAMS_PER_SOVEREIGN;
+
+  const chg = (price: number) => ({
+    change: (price * changePercent) / 100,
+    changePercent,
+  });
 
   return (
     <>
@@ -382,19 +472,20 @@ function MetalRow({
                 const gramPrice = perGram * KARAT_PURITY[k];
                 const sovPrice = gramPrice * GRAMS_PER_SOVEREIGN;
                 const ozPrice = gramPrice * GRAMS_PER_TROY_OUNCE;
+                const display = showPerOunce ? ozPrice : gramPrice;
+                const c = chg(display);
                 return (
                   <div key={k} className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       {k}K Gold
                     </div>
                     <div className="font-mono text-xl font-bold tabular text-foreground">
-                      {fmtCurrency(showPerOunce ? ozPrice : gramPrice, currency, {
-                        maximumFractionDigits: 2,
-                      })}
+                      {fmtCurrency(display, currency, { maximumFractionDigits: 2 })}
                       <span className="ml-1 text-[10px] font-medium uppercase text-muted-foreground">
                         /{showPerOunce ? "oz" : "g"}
                       </span>
                     </div>
+                    <ChangeBadge {...c} currency={currency} />
                     <div className="font-mono text-[11px] text-muted-foreground">
                       1 sovereign (8 g) ·{" "}
                       <span className="font-semibold text-foreground">
@@ -413,6 +504,7 @@ function MetalRow({
                   value={perGram}
                   currency={currency}
                   digits={2}
+                  change={chg(perGram)}
                 />
               ) : null}
               {showPerOunce ? (
@@ -421,6 +513,7 @@ function MetalRow({
                   value={perOunce}
                   currency={currency}
                   digits={2}
+                  change={chg(perOunce)}
                 />
               ) : null}
               <PriceCell
@@ -428,6 +521,7 @@ function MetalRow({
                 value={perKg}
                 currency={currency}
                 digits={0}
+                change={chg(perKg)}
               />
             </div>
           )}
@@ -453,20 +547,23 @@ function PriceCell({
   value,
   currency,
   digits,
+  change,
 }: {
   label: string;
   value: number;
   currency: string;
   digits: number;
+  change?: { change: number; changePercent: number };
 }) {
   return (
-    <div>
+    <div className="space-y-1">
       <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div className="font-mono text-lg font-bold tabular text-foreground">
         {fmtCurrency(value, currency, { maximumFractionDigits: digits })}
       </div>
+      {change ? <ChangeBadge {...change} currency={currency} digits={digits} /> : null}
     </div>
   );
 }
@@ -664,12 +761,14 @@ function Gasoline({
           value={fuel.petrol}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
+          changePercent={crude.changePercent}
         />
         <FuelTile
           label="Diesel"
           value={fuel.diesel}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
+          changePercent={crude.changePercent}
         />
         <FuelTile
           label="LPG (Domestic)"
@@ -696,12 +795,15 @@ function FuelTile({
   value,
   unit,
   currency,
+  changePercent,
 }: {
   label: string;
   value: number;
   unit: string;
   currency: string;
+  changePercent?: number;
 }) {
+  const hasChange = typeof changePercent === "number" && Number.isFinite(changePercent);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -711,6 +813,15 @@ function FuelTile({
         {fmtCurrency(value, currency, { maximumFractionDigits: 2 })}
       </div>
       <div className="font-mono text-[10px] text-muted-foreground">{unit}</div>
+      {hasChange ? (
+        <div className="mt-1">
+          <ChangeBadge
+            change={(value * (changePercent as number)) / 100}
+            changePercent={changePercent as number}
+            currency={currency}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -719,8 +830,19 @@ function FuelTile({
  * 4) CURRENCIES
  * ===================================================================== */
 
-function Currencies({ rates, base }: { rates: Record<string, number>; base: string }) {
+function Currencies({
+  rates,
+  ratesYesterday,
+  base,
+  currency,
+}: {
+  rates: Record<string, number>;
+  ratesYesterday: Record<string, number>;
+  base: string;
+  currency: string;
+}) {
   const baseRate = rates[base];
+  const baseRateY = ratesYesterday[base];
   const featured = [
     "USD", "EUR", "GBP", "JPY", "AED", "INR",
     "CNY", "AUD", "CAD", "CHF", "SGD", "HKD",
@@ -734,21 +856,44 @@ function Currencies({ rates, base }: { rates: Record<string, number>; base: stri
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((ccy) => {
             const perBase = rates[ccy] / baseRate;
+            const perBaseY =
+              baseRateY && ratesYesterday[ccy]
+                ? ratesYesterday[ccy] / baseRateY
+                : NaN;
+            const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
+            const pct = Number.isFinite(perBaseY) && perBaseY
+              ? ((perBase - perBaseY) / perBaseY) * 100
+              : 0;
+            const up = pct >= 0;
             return (
               <div
                 key={ccy}
-                className="flex items-baseline justify-between border-b border-white/10 pb-2"
+                className="flex flex-col gap-0.5 border-b border-white/10 pb-2"
               >
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-                  {ccy}
-                </span>
-                <span className="font-mono text-sm font-medium tabular text-white">
-                  {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+                    {ccy}
+                  </span>
+                  <span className="font-mono text-sm font-medium tabular text-white">
+                    {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+                  </span>
+                </div>
+                {pct !== 0 ? (
+                  <div
+                    className="text-right font-mono text-[12px] font-semibold tabular"
+                    style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+                  >
+                    {up ? "▲ +" : "▼ -"}
+                    {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
+                  </div>
+                ) : (
+                  <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
+                )}
               </div>
             );
           })}
         </div>
+        <div className="mt-3 text-[10px] text-white/40">Base: {currency} · vs yesterday's close</div>
       </div>
     </section>
   );
