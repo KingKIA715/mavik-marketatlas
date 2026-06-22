@@ -208,6 +208,10 @@ export const STOCKS: Record<string, StockDef> = {
   "^STOXX50E": { ticker: "^STOXX50E", name: "Euro Stoxx 50", exchange: "EU", country: "EU" },
   "^GDAXI": { ticker: "^GDAXI", name: "DAX 40", exchange: "XETRA", country: "EU" },
   "^FCHI": { ticker: "^FCHI", name: "CAC 40", exchange: "EPA", country: "EU" },
+  "^N225": { ticker: "^N225", name: "Nikkei 225", exchange: "TSE", country: "JP" },
+  "^TPX": { ticker: "^TPX", name: "TOPIX", exchange: "TSE", country: "JP" },
+  "000001.SS": { ticker: "000001.SS", name: "Shanghai Composite", exchange: "SSE", country: "CN" },
+  "^HSI": { ticker: "^HSI", name: "Hang Seng", exchange: "HKEX", country: "CN" },
 };
 
 /** Friendly names for basket tickers (best-effort; falls back to ticker). */
