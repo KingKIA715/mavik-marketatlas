@@ -795,12 +795,15 @@ function FuelTile({
   value,
   unit,
   currency,
+  changePercent,
 }: {
   label: string;
   value: number;
   unit: string;
   currency: string;
+  changePercent?: number;
 }) {
+  const hasChange = typeof changePercent === "number" && Number.isFinite(changePercent);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
@@ -810,6 +813,15 @@ function FuelTile({
         {fmtCurrency(value, currency, { maximumFractionDigits: 2 })}
       </div>
       <div className="font-mono text-[10px] text-muted-foreground">{unit}</div>
+      {hasChange ? (
+        <div className="mt-1">
+          <ChangeBadge
+            change={(value * (changePercent as number)) / 100}
+            changePercent={changePercent as number}
+            currency={currency}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }
