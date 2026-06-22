@@ -82,7 +82,11 @@ function Dashboard() {
         fetchedAt={data.fetchedAt}
       />
 
-      <main className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-8 sm:px-6 sm:pt-10">
+      <main
+        suppressHydrationWarning
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-8 sm:px-6 sm:pt-10"
+      >
+
         <PreciousMetals
           country={country}
           metals={data.metals}
