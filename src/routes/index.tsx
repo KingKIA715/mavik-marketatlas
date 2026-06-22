@@ -83,14 +83,17 @@ function Dashboard() {
         fetchedAt={data.fetchedAt}
       />
 
+      <CountryPills country={country} onChange={setCountry} />
+
       <main
         suppressHydrationWarning
-        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-8 sm:px-6 sm:pt-10"
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
 
         <PreciousMetals
           country={country}
           metals={data.metals}
+          metalsChange={data.metalsChange}
           toLocal={toLocal}
           fx={fx}
           currency={def.currency}
@@ -111,7 +114,12 @@ function Dashboard() {
           currency={def.currency}
         />
 
-        <Currencies rates={data.rates.rates} base={def.currency} />
+        <Currencies
+          rates={data.rates.rates}
+          ratesYesterday={data.ratesYesterday.rates}
+          base={def.currency}
+          currency={def.currency}
+        />
 
         <Footer
           fetchedAt={data.fetchedAt}
@@ -124,6 +132,80 @@ function Dashboard() {
           }}
         />
       </main>
+    </div>
+  );
+}
+
+/* =====================================================================
+ * COUNTRY PILLS + CHANGE BADGE
+ * ===================================================================== */
+
+function CountryPills({
+  country,
+  onChange,
+}: {
+  country: CountryCode;
+  onChange: (c: CountryCode) => void;
+}) {
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto flex max-w-6xl gap-1.5 overflow-x-auto px-4 py-2.5 sm:px-6">
+        {COUNTRY_ORDER.map((c) => {
+          const cd = COUNTRIES[c];
+          const active = c === country;
+          return (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChange(c)}
+              className={cn(
+                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
+                active
+                  ? "border-[color:var(--brand)] bg-[color:var(--brand)] text-white shadow-sm"
+                  : "border-border bg-background text-foreground hover:bg-surface-alt",
+              )}
+              aria-pressed={active}
+            >
+              <span aria-hidden>{cd.flag}</span>
+              <span>{COUNTRY_SHORT[c]}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function ChangeBadge({
+  change,
+  changePercent,
+  currency,
+  digits = 2,
+}: {
+  change: number;
+  changePercent: number;
+  currency?: string;
+  digits?: number;
+}) {
+  if (!Number.isFinite(changePercent) || (change === 0 && changePercent === 0)) {
+    return (
+      <div className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
+    );
+  }
+  const up = changePercent >= 0;
+  const arrow = up ? "▲" : "▼";
+  const sign = up ? "+" : "-";
+  const absChange = Math.abs(change);
+  const valueStr = currency
+    ? fmtCurrency(absChange, currency, { maximumFractionDigits: digits })
+    : fmtNumber(absChange, digits);
+  return (
+    <div
+      className="font-mono text-[12px] font-semibold tabular"
+      style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+    >
+      {arrow} {sign}
+      {valueStr} ({fmtPct(changePercent)})
     </div>
   );
 }
