@@ -99,6 +99,38 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
     ],
     fuelVolumeUnit: "L",
   },
+  JP: {
+    code: "JP",
+    name: "Japan",
+    currency: "JPY",
+    symbol: "¥",
+    flag: "🇯🇵",
+    locale: "ja-JP",
+    displayCurrencies: ["JPY", "USD", "EUR", "GBP", "CNY", "AUD"],
+    metalUnit: "gram",
+    stockIndices: ["^N225", "^TPX"],
+    stockBasket: [
+      "7203.T", "6758.T", "9984.T", "6861.T", "8306.T",
+      "9432.T", "7974.T", "6098.T",
+    ],
+    fuelVolumeUnit: "L",
+  },
+  CN: {
+    code: "CN",
+    name: "China",
+    currency: "CNY",
+    symbol: "¥",
+    flag: "🇨🇳",
+    locale: "zh-CN",
+    displayCurrencies: ["CNY", "USD", "EUR", "JPY", "HKD", "GBP"],
+    metalUnit: "gram",
+    stockIndices: ["000001.SS", "^HSI"],
+    stockBasket: [
+      "601398.SS", "601857.SS", "600519.SS", "601318.SS",
+      "0700.HK", "9988.HK", "3690.HK", "0939.HK",
+    ],
+    fuelVolumeUnit: "L",
+  },
 };
 
 export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "EU", "GB", "AE"];
