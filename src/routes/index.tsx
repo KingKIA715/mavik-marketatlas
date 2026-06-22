@@ -830,8 +830,19 @@ function FuelTile({
  * 4) CURRENCIES
  * ===================================================================== */
 
-function Currencies({ rates, base }: { rates: Record<string, number>; base: string }) {
+function Currencies({
+  rates,
+  ratesYesterday,
+  base,
+  currency,
+}: {
+  rates: Record<string, number>;
+  ratesYesterday: Record<string, number>;
+  base: string;
+  currency: string;
+}) {
   const baseRate = rates[base];
+  const baseRateY = ratesYesterday[base];
   const featured = [
     "USD", "EUR", "GBP", "JPY", "AED", "INR",
     "CNY", "AUD", "CAD", "CHF", "SGD", "HKD",
@@ -845,21 +856,44 @@ function Currencies({ rates, base }: { rates: Record<string, number>; base: stri
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((ccy) => {
             const perBase = rates[ccy] / baseRate;
+            const perBaseY =
+              baseRateY && ratesYesterday[ccy]
+                ? ratesYesterday[ccy] / baseRateY
+                : NaN;
+            const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
+            const pct = Number.isFinite(perBaseY) && perBaseY
+              ? ((perBase - perBaseY) / perBaseY) * 100
+              : 0;
+            const up = pct >= 0;
             return (
               <div
                 key={ccy}
-                className="flex items-baseline justify-between border-b border-white/10 pb-2"
+                className="flex flex-col gap-0.5 border-b border-white/10 pb-2"
               >
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-                  {ccy}
-                </span>
-                <span className="font-mono text-sm font-medium tabular text-white">
-                  {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-                </span>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
+                    {ccy}
+                  </span>
+                  <span className="font-mono text-sm font-medium tabular text-white">
+                    {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+                  </span>
+                </div>
+                {pct !== 0 ? (
+                  <div
+                    className="text-right font-mono text-[12px] font-semibold tabular"
+                    style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+                  >
+                    {up ? "▲ +" : "▼ -"}
+                    {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
+                  </div>
+                ) : (
+                  <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
+                )}
               </div>
             );
           })}
         </div>
+        <div className="mt-3 text-[10px] text-white/40">Base: {currency} · vs yesterday's close</div>
       </div>
     </section>
   );
