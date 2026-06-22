@@ -407,6 +407,7 @@ function MetalRow({
   yahooSymbol,
   karats,
   perGram,
+  changePercent,
   currency,
   country,
   fx,
@@ -416,6 +417,7 @@ function MetalRow({
   yahooSymbol: string;
   karats?: number[];
   perGram: number;
+  changePercent: number;
   currency: string;
   country: CountryCode;
   fx: number;
@@ -424,13 +426,16 @@ function MetalRow({
   const def = COUNTRIES[country];
   const valid = Number.isFinite(perGram) && perGram > 0;
 
-  // Display unit logic
-  const showPerGram = def.metalUnit === "gram" || metalCode === "XAU"; // gold per gram useful everywhere
+  const showPerGram = def.metalUnit === "gram" || metalCode === "XAU";
   const showPerOunce = def.metalUnit === "ounce";
   const isGold = metalCode === "XAU";
   const perOunce = perGram * GRAMS_PER_TROY_OUNCE;
   const perKg = perGram * GRAMS_PER_KG;
-  const perSovereign = perGram * GRAMS_PER_SOVEREIGN;
+
+  const chg = (price: number) => ({
+    change: (price * changePercent) / 100,
+    changePercent,
+  });
 
   return (
     <>
@@ -467,19 +472,20 @@ function MetalRow({
                 const gramPrice = perGram * KARAT_PURITY[k];
                 const sovPrice = gramPrice * GRAMS_PER_SOVEREIGN;
                 const ozPrice = gramPrice * GRAMS_PER_TROY_OUNCE;
+                const display = showPerOunce ? ozPrice : gramPrice;
+                const c = chg(display);
                 return (
                   <div key={k} className="space-y-1.5">
                     <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                       {k}K Gold
                     </div>
                     <div className="font-mono text-xl font-bold tabular text-foreground">
-                      {fmtCurrency(showPerOunce ? ozPrice : gramPrice, currency, {
-                        maximumFractionDigits: 2,
-                      })}
+                      {fmtCurrency(display, currency, { maximumFractionDigits: 2 })}
                       <span className="ml-1 text-[10px] font-medium uppercase text-muted-foreground">
                         /{showPerOunce ? "oz" : "g"}
                       </span>
                     </div>
+                    <ChangeBadge {...c} currency={currency} />
                     <div className="font-mono text-[11px] text-muted-foreground">
                       1 sovereign (8 g) ·{" "}
                       <span className="font-semibold text-foreground">
@@ -498,6 +504,7 @@ function MetalRow({
                   value={perGram}
                   currency={currency}
                   digits={2}
+                  change={chg(perGram)}
                 />
               ) : null}
               {showPerOunce ? (
@@ -506,6 +513,7 @@ function MetalRow({
                   value={perOunce}
                   currency={currency}
                   digits={2}
+                  change={chg(perOunce)}
                 />
               ) : null}
               <PriceCell
@@ -513,6 +521,7 @@ function MetalRow({
                 value={perKg}
                 currency={currency}
                 digits={0}
+                change={chg(perKg)}
               />
             </div>
           )}
@@ -538,20 +547,23 @@ function PriceCell({
   value,
   currency,
   digits,
+  change,
 }: {
   label: string;
   value: number;
   currency: string;
   digits: number;
+  change?: { change: number; changePercent: number };
 }) {
   return (
-    <div>
+    <div className="space-y-1">
       <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
       <div className="font-mono text-lg font-bold tabular text-foreground">
         {fmtCurrency(value, currency, { maximumFractionDigits: digits })}
       </div>
+      {change ? <ChangeBadge {...change} currency={currency} digits={digits} /> : null}
     </div>
   );
 }
