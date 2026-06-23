@@ -201,6 +201,7 @@ function ChangeBadge({
     : fmtNumber(absChange, digits);
   return (
     <div
+      suppressHydrationWarning
       className="font-mono text-[12px] font-semibold tabular"
       style={{ color: up ? "var(--positive)" : "var(--negative)" }}
     >
