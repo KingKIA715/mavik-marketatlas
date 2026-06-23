@@ -888,41 +888,17 @@ function Currencies({
       <SectionHeader title="Currencies" hint={`1 ${base} converts to`} />
       <div className="rounded-2xl bg-[color:var(--ink)] p-5 text-white shadow-lg">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-          {list.map((ccy) => {
-            const perBase = rates[ccy] / baseRate;
-            const perBaseY =
-              baseRateY && ratesYesterday[ccy]
-                ? ratesYesterday[ccy] / baseRateY
-                : NaN;
-            const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
-            const pct = Number.isFinite(perBaseY) && perBaseY
-              ? ((perBase - perBaseY) / perBaseY) * 100
-              : 0;
-            const up = pct >= 0;
-            return (
-              <div
-                key={ccy}
-                className="flex flex-col gap-0.5 border-b border-white/10 pb-2"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-                    {ccy}
-                  </span>
-                  <span className="font-mono text-sm font-medium tabular text-white">
-                    {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-                  </span>
-                </div>
-                {pct !== 0 ? (
-                  <div
-                    className="text-right font-mono text-[12px] font-semibold tabular"
-                    style={{ color: up ? "var(--positive)" : "var(--negative)" }}
-                  >
-                    {up ? "▲ +" : "▼ -"}
-                    {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
-                  </div>
-                ) : (
-                  <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
-                )}
+          {list.map((ccy) => (
+            <CurrencyTile
+              key={ccy}
+              base={base}
+              ccy={ccy}
+              rate={rates[ccy]}
+              baseRate={baseRate}
+              rateY={ratesYesterday[ccy]}
+              baseRateY={baseRateY}
+            />
+          ))}
               </div>
             );
           })}
