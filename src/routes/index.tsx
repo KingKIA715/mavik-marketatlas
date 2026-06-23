@@ -960,6 +960,10 @@ function Footer({
       <div className="mt-1.5 font-mono text-[10px] text-muted-foreground/70">
         Sources: metals — {sources.metals} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
       </div>
+      <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground/60">
+        Data: {sources.metals} · Rates: {sources.rates} · Last sync:{" "}
+        {new Date(fetchedAt).toISOString().slice(11, 16)} UTC
+      </div>
     </footer>
   );
 }
