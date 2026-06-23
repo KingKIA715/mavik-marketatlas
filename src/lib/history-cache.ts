@@ -1,7 +1,7 @@
 // Tiny IndexedDB-backed LRU for 5y OHLC history series.
 // Falls back to in-memory map if IndexedDB is unavailable (SSR, private mode).
 
-import type { HistoryPoint } from "./market.functions";
+import type { HistoryPoint } from "./market-providers.server";
 
 const DB_NAME = "marketatlas-history";
 const STORE = "ohlc";
