@@ -70,6 +70,22 @@ function Dashboard() {
   const [country, setCountry] = useState<CountryCode>("IN");
   const [includeGST, setIncludeGST] = useState(false);
 
+  // Sync country with ?country= URL param (client-only to avoid SSR mismatch)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search).get("country")?.toUpperCase();
+    if (p && p in COUNTRIES && p !== country) setCountry(p as CountryCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("country") !== country) {
+      url.searchParams.set("country", country);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [country]);
+
   const def = COUNTRIES[country];
   const usdTo = (ccy: string) => data.rates.rates[ccy] ?? NaN;
   const fx = usdTo(def.currency);
@@ -189,7 +205,7 @@ function ChangeBadge({
 }) {
   if (!Number.isFinite(changePercent) || (change === 0 && changePercent === 0)) {
     return (
-      <div className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
+      <div suppressHydrationWarning className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
     );
   }
   const up = changePercent >= 0;
@@ -201,6 +217,7 @@ function ChangeBadge({
     : fmtNumber(absChange, digits);
   return (
     <div
+      suppressHydrationWarning
       className="font-mono text-[12px] font-semibold tabular"
       style={{ color: up ? "var(--positive)" : "var(--negative)" }}
     >
@@ -942,6 +959,10 @@ function Footer({
       </div>
       <div className="mt-1.5 font-mono text-[10px] text-muted-foreground/70">
         Sources: metals — {sources.metals} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
+      </div>
+      <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground/60">
+        Data: {sources.metals} · Rates: {sources.rates} · Last sync:{" "}
+        {new Date(fetchedAt).toISOString().slice(11, 16)} UTC
       </div>
     </footer>
   );

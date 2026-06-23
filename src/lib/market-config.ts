@@ -133,7 +133,7 @@ export const COUNTRIES: Record<CountryCode, CountryDef> = {
   },
 };
 
-export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "GB", "EU", "AE", "JP", "CN"];
+export const COUNTRY_ORDER: CountryCode[] = ["IN", "US", "GB", "EU", "JP", "CN", "AE"];
 
 export const COUNTRY_SHORT: Record<CountryCode, string> = {
   IN: "IN",
