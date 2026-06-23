@@ -899,9 +899,6 @@ function Currencies({
               baseRateY={baseRateY}
             />
           ))}
-              </div>
-            );
-          })}
         </div>
         <div className="mt-3 text-[10px] text-white/40">Base: {currency} · vs yesterday's close</div>
       </div>
