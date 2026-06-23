@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { MetalHistoryDialog } from "@/components/MetalHistoryDialog";
+import { HistoryDialog } from "@/components/HistoryDialog";
 import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel } from "lucide-react";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -545,15 +545,15 @@ function MetalRow({
         </div>
       </article>
 
-      <MetalHistoryDialog
+      <HistoryDialog
         open={open}
         onOpenChange={setOpen}
-        metalName={metalName}
-        metalCode={metalCode}
-        yahooSymbol={yahooSymbol}
-        fxToDisplay={fx}
-        displayCurrency={currency}
-        unit={def.metalUnit}
+        title={metalName}
+        symbol={yahooSymbol}
+        currency={currency}
+        scale={(def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx)}
+        unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"}`}
+        tint={metalCode === "XAU" ? "#d97706" : metalCode === "XAG" ? "#64748b" : "#475569"}
       />
     </>
   );
