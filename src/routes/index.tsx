@@ -906,6 +906,66 @@ function Currencies({
   );
 }
 
+function CurrencyTile({
+  base,
+  ccy,
+  rate,
+  baseRate,
+  rateY,
+  baseRateY,
+}: {
+  base: string;
+  ccy: string;
+  rate: number;
+  baseRate: number;
+  rateY?: number;
+  baseRateY?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const perBase = rate / baseRate;
+  const perBaseY = baseRateY && rateY ? rateY / baseRateY : NaN;
+  const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
+  const pct =
+    Number.isFinite(perBaseY) && perBaseY ? ((perBase - perBaseY) / perBaseY) * 100 : 0;
+  const up = pct >= 0;
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-white/10 pb-2">
+      <div className="flex items-baseline justify-between">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50 hover:text-white"
+          title={`${base} → ${ccy} history`}
+        >
+          {ccy} <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
+        </button>
+        <span className="font-mono text-sm font-medium tabular text-white">
+          {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+        </span>
+      </div>
+      {pct !== 0 ? (
+        <div
+          className="text-right font-mono text-[12px] font-semibold tabular"
+          style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+        >
+          {up ? "▲ +" : "▼ -"}
+          {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
+        </div>
+      ) : (
+        <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
+      )}
+      <HistoryDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`${base} / ${ccy}`}
+        symbol={`${base}${ccy}=X`}
+        unitLabel={`${ccy} per 1 ${base}`}
+        tint={up ? "#16a34a" : "#dc2626"}
+      />
+    </div>
+  );
+}
+
 /* =====================================================================
  * FOOTER
  * ===================================================================== */
