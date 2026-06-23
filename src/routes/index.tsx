@@ -70,6 +70,22 @@ function Dashboard() {
   const [country, setCountry] = useState<CountryCode>("IN");
   const [includeGST, setIncludeGST] = useState(false);
 
+  // Sync country with ?country= URL param (client-only to avoid SSR mismatch)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search).get("country")?.toUpperCase();
+    if (p && p in COUNTRIES && p !== country) setCountry(p as CountryCode);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("country") !== country) {
+      url.searchParams.set("country", country);
+      window.history.replaceState({}, "", url.toString());
+    }
+  }, [country]);
+
   const def = COUNTRIES[country];
   const usdTo = (ccy: string) => data.rates.rates[ccy] ?? NaN;
   const fx = usdTo(def.currency);
