@@ -121,15 +121,3 @@ export const getHistory = createServerFn({ method: "GET" })
     );
   });
 
-// Backward-compat alias for existing MetalHistoryDialog.
-export const getMetalHistory = createServerFn({ method: "GET" })
-  .inputValidator((data: { symbol: string }) => {
-    if (!/^[A-Z]{1,3}=F$/.test(data.symbol)) throw new Error("Invalid symbol");
-    return data;
-  })
-  .handler(async ({ data }): Promise<{ data: HistoryPoint[]; source: string }> => {
-    setResponseHeader("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
-    return cached(`hist:${data.symbol}:5y:1mo`, 24 * ONE_HOUR, () =>
-      fetchHistory(data.symbol, "5y", "1mo"),
-    );
-  });
