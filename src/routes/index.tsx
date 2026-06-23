@@ -640,13 +640,22 @@ function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
   const def = STOCKS[quote.ticker];
   const up = quote.change >= 0;
   const accent = up ? "var(--positive)" : "var(--negative)";
+  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-bold text-foreground">{def?.name ?? quote.ticker}</div>
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {def?.exchange}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-surface-alt"
+        >
+          <LineChartIcon className="h-3 w-3" />
+          History
+        </button>
+      </div>
+      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {def?.exchange}
       </div>
       <div className="mt-2 font-mono text-xl font-bold tabular text-foreground">
         {fmtNumber(quote.price, 2)}
@@ -658,6 +667,14 @@ function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
         {up ? "▲ +" : "▼ "}
         {fmtNumber(Math.abs(quote.change), 2)} · {fmtPct(quote.changePercent)}
       </div>
+      <HistoryDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={def?.name ?? quote.ticker}
+        symbol={quote.ticker}
+        tint={up ? "#16a34a" : "#dc2626"}
+        unitLabel={quote.currency}
+      />
     </div>
   );
 }
