@@ -95,16 +95,29 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
   },
 );
 
-/* ----------------------------- Metal history (lazy) ----------------------- */
+/* ----------------------------- History (lazy) ---------------------------- */
 
-export const getMetalHistory = createServerFn({ method: "GET" })
-  .inputValidator((data: { symbol: string }) => {
-    if (!/^[A-Z]{1,3}=F$/.test(data.symbol)) {
-      throw new Error("Invalid symbol");
-    }
-    return data;
+// Allow Yahoo symbols for futures (GC=F), indices (^GSPC, ^NSEI, 000001.SS),
+// equities (AAPL, RELIANCE.NS, 7203.T), and FX pairs (EURUSD=X).
+const SYMBOL_RE = /^[\^A-Z0-9.=-]{1,16}$/;
+const RANGE_RE = /^(1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$/;
+const INTERVAL_RE = /^(1d|1wk|1mo)$/;
+
+export const getHistory = createServerFn({ method: "GET" })
+  .inputValidator((data: { symbol: string; range?: string; interval?: string }) => {
+    if (!SYMBOL_RE.test(data.symbol)) throw new Error("Invalid symbol");
+    const range = data.range ?? "5y";
+    const interval = data.interval ?? "1mo";
+    if (!RANGE_RE.test(range)) throw new Error("Invalid range");
+    if (!INTERVAL_RE.test(interval)) throw new Error("Invalid interval");
+    return { symbol: data.symbol, range, interval };
   })
   .handler(async ({ data }): Promise<{ data: HistoryPoint[]; source: string }> => {
     setResponseHeader("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
-    return cached(`hist:${data.symbol}`, 24 * ONE_HOUR, () => fetchHistory(data.symbol, "5y", "1mo"));
+    return cached(
+      `hist:${data.symbol}:${data.range}:${data.interval}`,
+      24 * ONE_HOUR,
+      () => fetchHistory(data.symbol, data.range, data.interval),
+    );
   });
+

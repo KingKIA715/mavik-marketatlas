@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { MetalHistoryDialog } from "@/components/MetalHistoryDialog";
+import { HistoryDialog } from "@/components/HistoryDialog";
 import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel } from "lucide-react";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -545,15 +545,15 @@ function MetalRow({
         </div>
       </article>
 
-      <MetalHistoryDialog
+      <HistoryDialog
         open={open}
         onOpenChange={setOpen}
-        metalName={metalName}
-        metalCode={metalCode}
-        yahooSymbol={yahooSymbol}
-        fxToDisplay={fx}
-        displayCurrency={currency}
-        unit={def.metalUnit}
+        title={metalName}
+        symbol={yahooSymbol}
+        currency={currency}
+        scale={(def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx)}
+        unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"}`}
+        tint={metalCode === "XAU" ? "#d97706" : metalCode === "XAG" ? "#64748b" : "#475569"}
       />
     </>
   );
@@ -640,13 +640,22 @@ function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
   const def = STOCKS[quote.ticker];
   const up = quote.change >= 0;
   const accent = up ? "var(--positive)" : "var(--negative)";
+  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-bold text-foreground">{def?.name ?? quote.ticker}</div>
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
-          {def?.exchange}
-        </div>
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-surface-alt"
+        >
+          <LineChartIcon className="h-3 w-3" />
+          History
+        </button>
+      </div>
+      <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        {def?.exchange}
       </div>
       <div className="mt-2 font-mono text-xl font-bold tabular text-foreground">
         {fmtNumber(quote.price, 2)}
@@ -658,6 +667,14 @@ function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
         {up ? "▲ +" : "▼ "}
         {fmtNumber(Math.abs(quote.change), 2)} · {fmtPct(quote.changePercent)}
       </div>
+      <HistoryDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={def?.name ?? quote.ticker}
+        symbol={quote.ticker}
+        tint={up ? "#16a34a" : "#dc2626"}
+        unitLabel={quote.currency}
+      />
     </div>
   );
 }
@@ -871,48 +888,81 @@ function Currencies({
       <SectionHeader title="Currencies" hint={`1 ${base} converts to`} />
       <div className="rounded-2xl bg-[color:var(--ink)] p-5 text-white shadow-lg">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-          {list.map((ccy) => {
-            const perBase = rates[ccy] / baseRate;
-            const perBaseY =
-              baseRateY && ratesYesterday[ccy]
-                ? ratesYesterday[ccy] / baseRateY
-                : NaN;
-            const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
-            const pct = Number.isFinite(perBaseY) && perBaseY
-              ? ((perBase - perBaseY) / perBaseY) * 100
-              : 0;
-            const up = pct >= 0;
-            return (
-              <div
-                key={ccy}
-                className="flex flex-col gap-0.5 border-b border-white/10 pb-2"
-              >
-                <div className="flex items-baseline justify-between">
-                  <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50">
-                    {ccy}
-                  </span>
-                  <span className="font-mono text-sm font-medium tabular text-white">
-                    {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-                  </span>
-                </div>
-                {pct !== 0 ? (
-                  <div
-                    className="text-right font-mono text-[12px] font-semibold tabular"
-                    style={{ color: up ? "var(--positive)" : "var(--negative)" }}
-                  >
-                    {up ? "▲ +" : "▼ -"}
-                    {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
-                  </div>
-                ) : (
-                  <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
-                )}
-              </div>
-            );
-          })}
+          {list.map((ccy) => (
+            <CurrencyTile
+              key={ccy}
+              base={base}
+              ccy={ccy}
+              rate={rates[ccy]}
+              baseRate={baseRate}
+              rateY={ratesYesterday[ccy]}
+              baseRateY={baseRateY}
+            />
+          ))}
         </div>
         <div className="mt-3 text-[10px] text-white/40">Base: {currency} · vs yesterday's close</div>
       </div>
     </section>
+  );
+}
+
+function CurrencyTile({
+  base,
+  ccy,
+  rate,
+  baseRate,
+  rateY,
+  baseRateY,
+}: {
+  base: string;
+  ccy: string;
+  rate: number;
+  baseRate: number;
+  rateY?: number;
+  baseRateY?: number;
+}) {
+  const [open, setOpen] = useState(false);
+  const perBase = rate / baseRate;
+  const perBaseY = baseRateY && rateY ? rateY / baseRateY : NaN;
+  const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
+  const pct =
+    Number.isFinite(perBaseY) && perBaseY ? ((perBase - perBaseY) / perBaseY) * 100 : 0;
+  const up = pct >= 0;
+  return (
+    <div className="flex flex-col gap-0.5 border-b border-white/10 pb-2">
+      <div className="flex items-baseline justify-between">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50 hover:text-white"
+          title={`${base} → ${ccy} history`}
+        >
+          {ccy} <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
+        </button>
+        <span className="font-mono text-sm font-medium tabular text-white">
+          {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+        </span>
+      </div>
+      {pct !== 0 ? (
+        <div
+          className="text-right font-mono text-[12px] font-semibold tabular"
+          style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+        >
+          {up ? "▲ +" : "▼ -"}
+          {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
+        </div>
+      ) : (
+        <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
+      )}
+      <HistoryDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={`${base} / ${ccy}`}
+        symbol={`${base}${ccy}=X`}
+        unitLabel={`${ccy} per 1 ${base}`}
+        tint={up ? "#16a34a" : "#dc2626"}
+      />
+    </div>
   );
 }
 
