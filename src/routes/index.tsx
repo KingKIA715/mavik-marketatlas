@@ -189,7 +189,7 @@ function ChangeBadge({
 }) {
   if (!Number.isFinite(changePercent) || (change === 0 && changePercent === 0)) {
     return (
-      <div className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
+      <div suppressHydrationWarning className="font-mono text-[12px] text-muted-foreground/70">— 24h</div>
     );
   }
   const up = changePercent >= 0;
