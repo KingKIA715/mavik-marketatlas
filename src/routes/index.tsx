@@ -242,6 +242,36 @@ function Header({
   fetchedAt: string;
 }) {
   const def = COUNTRIES[country];
+  const queryClient = useQueryClient();
+  const sync = useServerFn(triggerSync);
+  const [syncing, setSyncing] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<
+    | { kind: "idle" }
+    | { kind: "ok"; at: string; durationMs: number }
+    | { kind: "err"; message: string }
+  >({ kind: "idle" });
+
+  const onSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await sync();
+      if (res.ok) {
+        setSyncStatus({ kind: "ok", at: res.fetchedAt, durationMs: res.durationMs });
+        await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
+      } else {
+        setSyncStatus({ kind: "err", message: res.error });
+      }
+    } catch (err) {
+      setSyncStatus({
+        kind: "err",
+        message: err instanceof Error ? err.message : String(err),
+      });
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   return (
     <header className="border-b border-border bg-[color:var(--ink)] text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
@@ -255,27 +285,42 @@ function Header({
           </p>
         </div>
 
-        {/* RIGHT — country selector + local date + live */}
+        {/* RIGHT — country selector + local date + live + sync */}
         <div className="flex flex-col gap-2 sm:items-end">
-          <Select value={country} onValueChange={(v) => onCountryChange(v as CountryCode)}>
-            <SelectTrigger className="h-9 w-full border-white/15 bg-white/5 text-white hover:bg-white/10 sm:w-56">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {COUNTRY_ORDER.map((c) => {
-                const cd = COUNTRIES[c];
-                return (
-                  <SelectItem key={c} value={c}>
-                    <span className="mr-2">{cd.flag}</span>
-                    <span>{cd.name}</span>
-                    <span className="ml-2 font-mono text-[10px] text-muted-foreground">
-                      {cd.currency}
-                    </span>
-                  </SelectItem>
-                );
-              })}
-            </SelectContent>
-          </Select>
+          <div className="flex w-full items-center gap-2 sm:w-auto">
+            <Select value={country} onValueChange={(v) => onCountryChange(v as CountryCode)}>
+              <SelectTrigger className="h-9 w-full border-white/15 bg-white/5 text-white hover:bg-white/10 sm:w-56">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {COUNTRY_ORDER.map((c) => {
+                  const cd = COUNTRIES[c];
+                  return (
+                    <SelectItem key={c} value={c}>
+                      <span className="mr-2">{cd.flag}</span>
+                      <span>{cd.name}</span>
+                      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
+                        {cd.currency}
+                      </span>
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <button
+              type="button"
+              onClick={onSync}
+              disabled={syncing}
+              title="Force refresh from upstream APIs"
+              className={cn(
+                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/10",
+                syncing && "cursor-wait opacity-70",
+              )}
+            >
+              <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
+              {syncing ? "Syncing…" : "Sync now"}
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             <LocalDate iso={fetchedAt} locale={def.locale} />
             <span className="inline-flex items-center gap-1.5">
@@ -288,6 +333,22 @@ function Header({
               </span>
             </span>
           </div>
+          {syncStatus.kind !== "idle" ? (
+            <div
+              suppressHydrationWarning
+              className="font-mono text-[10px]"
+              style={{
+                color:
+                  syncStatus.kind === "ok"
+                    ? "rgb(74 222 128)"
+                    : "rgb(248 113 113)",
+              }}
+            >
+              {syncStatus.kind === "ok"
+                ? `Synced ${new Date(syncStatus.at).toISOString().slice(11, 19)}Z · ${syncStatus.durationMs}ms`
+                : `Sync failed: ${syncStatus.message}`}
+            </div>
+          ) : null}
         </div>
       </div>
     </header>
