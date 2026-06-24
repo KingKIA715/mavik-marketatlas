@@ -33,19 +33,23 @@ export interface Rates {
 }
 
 async function ratesFromFrankfurter(): Promise<Rates> {
-  const res = await fetch("https://api.frankfurter.dev/v1/latest?base=USD", {
-    headers: { accept: "application/json" },
+  return withRetry("frankfurter", async () => {
+    const res = await fetch("https://api.frankfurter.dev/v1/latest?base=USD", {
+      headers: { accept: "application/json" },
+    });
+    if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
+    const json = (await res.json()) as { rates: Record<string, number> };
+    return { base: "USD" as const, rates: { ...json.rates, USD: 1 } };
   });
-  if (!res.ok) throw new Error(`Frankfurter ${res.status}`);
-  const json = (await res.json()) as { rates: Record<string, number> };
-  return { base: "USD", rates: { ...json.rates, USD: 1 } };
 }
 
 async function ratesFromExchangerateHost(): Promise<Rates> {
-  const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
-  if (!res.ok) throw new Error(`exchangerate-api ${res.status}`);
-  const json = (await res.json()) as { rates: Record<string, number> };
-  return { base: "USD", rates: { ...json.rates, USD: 1 } };
+  return withRetry("exchangerate-api", async () => {
+    const res = await fetch("https://api.exchangerate-api.com/v4/latest/USD");
+    if (!res.ok) throw new Error(`exchangerate-api ${res.status}`);
+    const json = (await res.json()) as { rates: Record<string, number> };
+    return { base: "USD" as const, rates: { ...json.rates, USD: 1 } };
+  });
 }
 
 export async function fetchRates(): Promise<{ data: Rates; source: string }> {
