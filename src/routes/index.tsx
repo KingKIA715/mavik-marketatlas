@@ -34,7 +34,6 @@ import { Label } from "@/components/ui/label";
 import { HistoryDialog } from "@/components/HistoryDialog";
 import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel, RefreshCw } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
