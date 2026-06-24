@@ -19,7 +19,7 @@ import {
   type CountryCode,
   type MetalCode,
 } from "@/lib/market-config";
-import { getMarketSnapshot, type MarketSnapshot } from "@/lib/market.functions";
+import { getMarketSnapshot, triggerSync, type MarketSnapshot } from "@/lib/market.functions";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
