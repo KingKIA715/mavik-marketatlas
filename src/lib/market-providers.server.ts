@@ -185,36 +185,38 @@ export interface Quote {
 }
 
 async function quoteFromYahoo(ticker: string): Promise<Quote> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
-    ticker,
-  )}?interval=1d&range=5d`;
-  const res = await fetch(url, { headers: YAHOO_HEADERS });
-  if (!res.ok) throw new Error(`yahoo ${ticker} ${res.status}`);
-  const json = (await res.json()) as {
-    chart: {
-      result?: Array<{
-        meta: {
-          regularMarketPrice: number;
-          previousClose?: number;
-          chartPreviousClose?: number;
-          currency: string;
-        };
-      }>;
+  return withRetry(`yahoo:${ticker}`, async () => {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(
+      ticker,
+    )}?interval=1d&range=5d`;
+    const res = await fetch(url, { headers: YAHOO_HEADERS });
+    if (!res.ok) throw new Error(`yahoo ${ticker} ${res.status}`);
+    const json = (await res.json()) as {
+      chart: {
+        result?: Array<{
+          meta: {
+            regularMarketPrice: number;
+            previousClose?: number;
+            chartPreviousClose?: number;
+            currency: string;
+          };
+        }>;
+      };
     };
-  };
-  const r = json.chart.result?.[0];
-  if (!r) throw new Error(`yahoo ${ticker}: no result`);
-  const price = r.meta.regularMarketPrice;
-  const prev = r.meta.previousClose ?? r.meta.chartPreviousClose ?? price;
-  const change = price - prev;
-  return {
-    ticker,
-    price,
-    previousClose: prev,
-    change,
-    changePercent: prev ? (change / prev) * 100 : 0,
-    currency: r.meta.currency,
-  };
+    const r = json.chart.result?.[0];
+    if (!r) throw new Error(`yahoo ${ticker}: no result`);
+    const price = r.meta.regularMarketPrice;
+    const prev = r.meta.previousClose ?? r.meta.chartPreviousClose ?? price;
+    const change = price - prev;
+    return {
+      ticker,
+      price,
+      previousClose: prev,
+      change,
+      changePercent: prev ? (change / prev) * 100 : 0,
+      currency: r.meta.currency,
+    };
+  });
 }
 
 export async function fetchQuotes(tickers: string[]): Promise<{ data: Quote[]; source: string }> {
