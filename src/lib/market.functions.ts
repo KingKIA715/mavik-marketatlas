@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { cached, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
+import { cached, clearCache, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
 import {
   fetchMetals,
   fetchQuotes,
