@@ -21,5 +21,21 @@ export async function cached<T>(
   return value;
 }
 
+export function clearCache(prefix?: string): number {
+  if (!prefix) {
+    const n = store.size;
+    store.clear();
+    return n;
+  }
+  let n = 0;
+  for (const k of Array.from(store.keys())) {
+    if (k.startsWith(prefix)) {
+      store.delete(k);
+      n++;
+    }
+  }
+  return n;
+}
+
 export const ONE_HOUR = 60 * 60 * 1000;
 export const FIFTEEN_MIN = 15 * 60 * 1000;

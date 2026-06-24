@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { cached, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
+import { cached, clearCache, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
 import {
   fetchMetals,
   fetchQuotes,
@@ -94,6 +94,38 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
     };
   },
 );
+
+/**
+ * Manual sync — clears the in-memory cache and rebuilds the snapshot.
+ * Returns the new fetchedAt and per-source labels so the UI can show status.
+ */
+export const triggerSync = createServerFn({ method: "POST" }).handler(async () => {
+  const startedAt = Date.now();
+  const cleared = clearCache();
+  try {
+    const snap = await getMarketSnapshot();
+    return {
+      ok: true as const,
+      cleared,
+      durationMs: Date.now() - startedAt,
+      fetchedAt: snap.fetchedAt,
+      sources: {
+        rates: snap.ratesSource,
+        metals: snap.metalsSource,
+        quotes: snap.quotesSource,
+        crude: snap.crudeSource,
+      },
+    };
+  } catch (err) {
+    return {
+      ok: false as const,
+      cleared,
+      durationMs: Date.now() - startedAt,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+});
+
 
 /* ----------------------------- History (lazy) ---------------------------- */
 
