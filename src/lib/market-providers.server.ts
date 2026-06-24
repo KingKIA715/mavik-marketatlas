@@ -96,36 +96,73 @@ async function metalsFromGoldApi(): Promise<MetalPrices> {
   const codes = ["XAU", "XAG", "XPT"] as const;
   const out: Partial<MetalPrices> = {};
   await Promise.all(
-    codes.map(async (c) => {
-      const res = await fetch(`https://api.gold-api.com/price/${c}`);
-      if (!res.ok) throw new Error(`gold-api ${c} ${res.status}`);
-      const json = (await res.json()) as { price: number };
-      out[c] = json.price;
-    }),
+    codes.map((c) =>
+      withRetry(`gold-api:${c}`, async () => {
+        const res = await fetch(`https://api.gold-api.com/price/${c}`);
+        if (!res.ok) throw new Error(`gold-api ${c} ${res.status}`);
+        const json = (await res.json()) as { price: number };
+        out[c] = json.price;
+      }),
+    ),
   );
   return out as MetalPrices;
 }
 
 async function metalsFromMetalpriceApi(key: string): Promise<MetalPrices> {
-  const res = await fetch(
-    `https://api.metalpriceapi.com/v1/latest?api_key=${encodeURIComponent(
-      key,
-    )}&base=USD&currencies=XAU,XAG,XPT`,
-  );
-  if (!res.ok) throw new Error(`metalpriceapi ${res.status}`);
-  const json = (await res.json()) as { rates?: Record<string, number> };
-  if (!json.rates) throw new Error("metalpriceapi: no rates");
-  const inv = (v: number) => (v > 0 ? 1 / v : NaN);
-  return { XAU: inv(json.rates.XAU), XAG: inv(json.rates.XAG), XPT: inv(json.rates.XPT) };
+  return withRetry("metalpriceapi", async () => {
+    const res = await fetch(
+      `https://api.metalpriceapi.com/v1/latest?api_key=${encodeURIComponent(
+        key,
+      )}&base=USD&currencies=XAU,XAG,XPT`,
+    );
+    if (!res.ok) throw new Error(`metalpriceapi ${res.status}`);
+    const json = (await res.json()) as { rates?: Record<string, number> };
+    if (!json.rates) throw new Error("metalpriceapi: no rates");
+    const inv = (v: number) => (v > 0 ? 1 / v : NaN);
+    return { XAU: inv(json.rates.XAU), XAG: inv(json.rates.XAG), XPT: inv(json.rates.XPT) };
+  });
+}
+
+/**
+ * Rotates between up to 3 MetalpriceAPI keys to spread the 100-call/month
+ * free quota across the month (≈300 calls total).
+ *   Days 1–10  → slot 0 (METALPRICE_API_KEY)
+ *   Days 11–20 → slot 1 (METALPRICE_API_KEY_2)
+ *   Days 21–31 → slot 2 (METALPRICE_API_KEY_3)
+ * Falls back to the next slot if one is missing.
+ */
+const METALPRICE_KEY_DEFAULTS = [
+  "7a45bc13e6ad1e2d67d5f407cf830b71",
+  "e9b9236e5eafc2ef64a4ff2f15b656c2",
+  "dff4dcec043acfa7ac0e8a7f515fc058",
+];
+
+function getMetalKeys(): string[] {
+  const k1 = process.env.METALPRICE_API_KEY ?? METALPRICE_KEY_DEFAULTS[0];
+  const k2 = process.env.METALPRICE_API_KEY_2 ?? METALPRICE_KEY_DEFAULTS[1];
+  const k3 = process.env.METALPRICE_API_KEY_3 ?? METALPRICE_KEY_DEFAULTS[2];
+  return [k1, k2, k3].filter((k): k is string => Boolean(k && k.length > 0));
+}
+
+function pickMetalKeyIndex(day = new Date().getUTCDate()): number {
+  if (day <= 10) return 0;
+  if (day <= 20) return 1;
+  return 2;
 }
 
 export async function fetchMetals(): Promise<{ data: MetalPrices; source: string }> {
-  const key = process.env.METALPRICE_API_KEY;
-  if (key) {
-    try {
-      return { data: await metalsFromMetalpriceApi(key), source: "MetalpriceAPI" };
-    } catch (e) {
-      console.warn("[metals] primary failed:", e);
+  const keys = getMetalKeys();
+  if (keys.length > 0) {
+    const start = Math.min(pickMetalKeyIndex(), keys.length - 1);
+    // Try the scheduled key first, then fall back to the others in order.
+    const order = [start, ...keys.map((_, i) => i).filter((i) => i !== start)];
+    for (const idx of order) {
+      try {
+        const data = await metalsFromMetalpriceApi(keys[idx]);
+        return { data, source: `MetalpriceAPI (key ${idx + 1}/${keys.length})` };
+      } catch (e) {
+        console.warn(`[metals] key slot ${idx + 1} failed:`, e);
+      }
     }
   }
   return { data: await metalsFromGoldApi(), source: "gold-api.com" };
