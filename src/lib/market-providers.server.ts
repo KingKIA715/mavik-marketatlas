@@ -1,6 +1,30 @@
 // Provider adapters for metals, currency, stocks, crude oil + history.
 // All raw values are USD; UI converts to display currency.
 
+/* ----------------------------------------------------------- HELPERS ----- */
+
+/** Retry an async op with exponential backoff. */
+async function withRetry<T>(
+  label: string,
+  op: () => Promise<T>,
+  { tries = 3, baseMs = 250 }: { tries?: number; baseMs?: number } = {},
+): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < tries; i++) {
+    try {
+      return await op();
+    } catch (err) {
+      lastErr = err;
+      if (i === tries - 1) break;
+      const delay = baseMs * 2 ** i + Math.floor(Math.random() * 100);
+      console.warn(`[${label}] attempt ${i + 1} failed, retrying in ${delay}ms:`, err);
+      await new Promise((r) => setTimeout(r, delay));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+}
+
+
 /* ----------------------------------------------------------- CURRENCY -- */
 
 export interface Rates {
