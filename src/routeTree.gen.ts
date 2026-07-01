@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as HistoryGoldRouteImport } from './routes/history.gold'
 import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const HistoryGoldRoute = HistoryGoldRouteImport.update({
+  id: '/history/gold',
+  path: '/history/gold',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiPublicSyncRoute = ApiPublicSyncRouteImport.update({
@@ -25,27 +31,31 @@ const ApiPublicSyncRoute = ApiPublicSyncRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/public/sync'
+  fullPaths: '/' | '/history/gold' | '/api/public/sync'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/public/sync'
-  id: '__root__' | '/' | '/api/public/sync'
+  to: '/' | '/history/gold' | '/api/public/sync'
+  id: '__root__' | '/' | '/history/gold' | '/api/public/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  HistoryGoldRoute: typeof HistoryGoldRoute
   ApiPublicSyncRoute: typeof ApiPublicSyncRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/history/gold': {
+      id: '/history/gold'
+      path: '/history/gold'
+      fullPath: '/history/gold'
+      preLoaderRoute: typeof HistoryGoldRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/public/sync': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  HistoryGoldRoute: HistoryGoldRoute,
   ApiPublicSyncRoute: ApiPublicSyncRoute,
 }
 export const routeTree = rootRouteImport
