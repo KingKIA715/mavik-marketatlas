@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://mavik-marketatlas.lovable.app/sitemap.xml
