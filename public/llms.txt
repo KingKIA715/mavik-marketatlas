@@ -7,3 +7,4 @@ MarketAtlas is a country-aware markets dashboard built by MAVIK group. Prices ad
 ## Pages
 
 - [Home](/): Live dashboard with precious metals, stock indices, top movers, fuel prices, and currency exchange rates for the selected country.
+- [Gold Price History](/history/gold): Long-term gold price trends over 1, 5, and 10 years with annual highs, lows, and averages in USD per troy ounce.
