@@ -280,7 +280,7 @@ function Header({
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Market<span className="text-[color:var(--brand)]">Atlas</span>
           </h1>
-          <p className="mt-1 max-w-md text-xs text-white/60 sm:text-sm">
+          <p className="mt-1 max-w-md text-xs text-white/85 sm:text-sm">
             Global financial hub for common people.
           </p>
         </div>
@@ -962,7 +962,7 @@ function Currencies({
             />
           ))}
         </div>
-        <div className="mt-3 text-[10px] text-white/40">Base: {currency} · vs yesterday's close</div>
+        <div className="mt-3 text-[10px] text-white/75">Base: {currency} · vs yesterday's close</div>
       </div>
     </section>
   );
@@ -996,7 +996,7 @@ function CurrencyTile({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/50 hover:text-white"
+          className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80 hover:text-white"
           title={`${base} → ${ccy} history`}
         >
           {ccy} <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
@@ -1014,7 +1014,7 @@ function CurrencyTile({
           {fmtNumber(Math.abs(change), perBase < 1 ? 4 : 2)} ({fmtPct(pct)})
         </div>
       ) : (
-        <div className="text-right font-mono text-[12px] text-white/40">— 24h</div>
+        <div className="text-right font-mono text-[12px] text-white/75">— 24h</div>
       )}
       <HistoryDialog
         open={open}
@@ -1069,10 +1069,10 @@ function Footer({
           Last updated {timeText || "—"} · cached hourly
         </span>
       </div>
-      <div className="mt-1.5 font-mono text-[10px] text-muted-foreground/70">
+      <div className="mt-1.5 font-mono text-[10px] text-muted-foreground">
         Sources: metals — {sources.metals} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
       </div>
-      <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground/60">
+      <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground">
         Data: {sources.metals} · Rates: {sources.rates} · Last sync:{" "}
         {new Date(fetchedAt).toISOString().slice(11, 16)} UTC
       </div>
