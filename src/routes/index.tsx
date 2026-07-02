@@ -502,6 +502,7 @@ function MetalRow({
   fx: number;
 }) {
   const [open, setOpen] = useState(false);
+  const [historyKarat, setHistoryKarat] = useState<number | null>(null);
   const def = COUNTRIES[country];
   const valid = Number.isFinite(perGram) && perGram > 0;
 
