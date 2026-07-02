@@ -628,6 +628,21 @@ function MetalRow({
         unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"}`}
         tint={metalCode === "XAU" ? "#d97706" : metalCode === "XAG" ? "#64748b" : "#475569"}
       />
+      {isGold && historyKarat !== null ? (
+        <HistoryDialog
+          open={historyKarat !== null}
+          onOpenChange={(o) => !o && setHistoryKarat(null)}
+          title={`${historyKarat}K Gold`}
+          symbol={yahooSymbol}
+          currency={currency}
+          scale={
+            (def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx) *
+            (KARAT_PURITY[historyKarat] ?? 1)
+          }
+          unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"} · ${historyKarat}K`}
+          tint="#d97706"
+        />
+      ) : null}
     </>
   );
 }
