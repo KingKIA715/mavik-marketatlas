@@ -278,7 +278,7 @@ function Header({
         {/* LEFT — brand + slogan */}
         <div className="min-w-0">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Market<span className="text-[color:var(--brand)]">Atlas</span>
+            Market<span className="text-[color:var(--brand)]">Atlas</span> — Global Financial Hub
           </h1>
           <p className="mt-1 max-w-md text-xs text-white/85 sm:text-sm">
             Global financial hub for common people.
