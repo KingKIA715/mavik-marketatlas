@@ -556,8 +556,18 @@ function MetalRow({
                 const c = chg(display);
                 return (
                   <div key={k} className="space-y-1.5">
-                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                      {k}K Gold
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        {k}K Gold
+                      </div>
+                      <button
+                        onClick={() => setHistoryKarat(k)}
+                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground transition-colors hover:bg-surface-alt"
+                        aria-label={`Show 5 year price history for ${k}K gold`}
+                      >
+                        <LineChartIcon className="h-2.5 w-2.5" />
+                        5y
+                      </button>
                     </div>
                     <div className="font-mono text-xl font-bold tabular text-foreground">
                       {fmtCurrency(display, currency, { maximumFractionDigits: 2 })}
