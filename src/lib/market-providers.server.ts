@@ -124,47 +124,90 @@ async function metalsFromMetalpriceApi(key: string): Promise<MetalPrices> {
 }
 
 /**
- * Rotates between up to 3 MetalpriceAPI keys to spread the 100-call/month
- * free quota across the month (≈300 calls total).
- *   Days 1–10  → slot 0 (METALPRICE_API_KEY)
- *   Days 11–20 → slot 1 (METALPRICE_API_KEY_2)
- *   Days 21–31 → slot 2 (METALPRICE_API_KEY_3)
- * Falls back to the next slot if one is missing.
+ * Metals.dev — primary provider. One request returns gold/silver/platinum in
+ * USD per troy ounce (live, no delay on paid tiers). Free tier is
+ * quota-limited, so we rotate across 3 keys by day-of-month:
+ *   Days 1–10  → slot 0 (METALS_DEV_API_KEY)
+ *   Days 11–20 → slot 1 (METALS_DEV_API_KEY_2)
+ *   Days 21–31 → slot 2 (METALS_DEV_API_KEY_3)
  */
-const METALPRICE_KEY_DEFAULTS = [
-  "7a45bc13e6ad1e2d67d5f407cf830b71",
-  "e9b9236e5eafc2ef64a4ff2f15b656c2",
-  "dff4dcec043acfa7ac0e8a7f515fc058",
-];
-
-function getMetalKeys(): string[] {
-  const k1 = process.env.METALPRICE_API_KEY ?? METALPRICE_KEY_DEFAULTS[0];
-  const k2 = process.env.METALPRICE_API_KEY_2 ?? METALPRICE_KEY_DEFAULTS[1];
-  const k3 = process.env.METALPRICE_API_KEY_3 ?? METALPRICE_KEY_DEFAULTS[2];
-  return [k1, k2, k3].filter((k): k is string => Boolean(k && k.length > 0));
+async function metalsFromMetalsDev(key: string): Promise<MetalPrices> {
+  return withRetry("metals.dev", async () => {
+    const res = await fetch(
+      `https://api.metals.dev/v1/latest?api_key=${encodeURIComponent(
+        key,
+      )}&currency=USD&unit=toz`,
+    );
+    if (!res.ok) throw new Error(`metals.dev ${res.status}`);
+    const json = (await res.json()) as {
+      status?: string;
+      metals?: { gold?: number; silver?: number; platinum?: number };
+    };
+    const m = json.metals;
+    if (!m || typeof m.gold !== "number") throw new Error("metals.dev: no metals payload");
+    return {
+      XAU: m.gold,
+      XAG: typeof m.silver === "number" ? m.silver : NaN,
+      XPT: typeof m.platinum === "number" ? m.platinum : NaN,
+    };
+  });
 }
 
-function pickMetalKeyIndex(day = new Date().getUTCDate()): number {
+function pickKeyIndex(day = new Date().getUTCDate()): number {
   if (day <= 10) return 0;
   if (day <= 20) return 1;
   return 2;
 }
 
+function getMetalsDevKeys(): string[] {
+  return [
+    process.env.METALS_DEV_API_KEY,
+    process.env.METALS_DEV_API_KEY_2,
+    process.env.METALS_DEV_API_KEY_3,
+  ].filter((k): k is string => Boolean(k && k.length > 0));
+}
+
+function getMetalpriceKeys(): string[] {
+  return [
+    process.env.METALPRICE_API_KEY,
+    process.env.METALPRICE_API_KEY_2,
+    process.env.METALPRICE_API_KEY_3,
+  ].filter((k): k is string => Boolean(k && k.length > 0));
+}
+
+function rotatedOrder<T>(items: T[]): T[] {
+  if (items.length === 0) return items;
+  const start = Math.min(pickKeyIndex(), items.length - 1);
+  const idxOrder = [start, ...items.map((_, i) => i).filter((i) => i !== start)];
+  return idxOrder.map((i) => items[i]);
+}
+
 export async function fetchMetals(): Promise<{ data: MetalPrices; source: string }> {
-  const keys = getMetalKeys();
-  if (keys.length > 0) {
-    const start = Math.min(pickMetalKeyIndex(), keys.length - 1);
-    // Try the scheduled key first, then fall back to the others in order.
-    const order = [start, ...keys.map((_, i) => i).filter((i) => i !== start)];
-    for (const idx of order) {
-      try {
-        const data = await metalsFromMetalpriceApi(keys[idx]);
-        return { data, source: `MetalpriceAPI (key ${idx + 1}/${keys.length})` };
-      } catch (e) {
-        console.warn(`[metals] key slot ${idx + 1} failed:`, e);
-      }
+  // 1) Primary: Metals.dev with day-of-month key rotation.
+  const mdKeys = getMetalsDevKeys();
+  for (const key of rotatedOrder(mdKeys)) {
+    try {
+      const data = await metalsFromMetalsDev(key);
+      const slot = mdKeys.indexOf(key) + 1;
+      return { data, source: `Metals.dev (key ${slot}/${mdKeys.length})` };
+    } catch (e) {
+      console.warn(`[metals] metals.dev key slot failed:`, e);
     }
   }
+
+  // 2) Fallback: MetalpriceAPI with the same rotation strategy.
+  const mpKeys = getMetalpriceKeys();
+  for (const key of rotatedOrder(mpKeys)) {
+    try {
+      const data = await metalsFromMetalpriceApi(key);
+      const slot = mpKeys.indexOf(key) + 1;
+      return { data, source: `MetalpriceAPI fallback (key ${slot}/${mpKeys.length})` };
+    } catch (e) {
+      console.warn(`[metals] metalpriceapi key slot failed:`, e);
+    }
+  }
+
+  // 3) Last resort: gold-api.com (per-metal calls, no key).
   return { data: await metalsFromGoldApi(), source: "gold-api.com" };
 }
 
