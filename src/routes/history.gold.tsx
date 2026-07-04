@@ -7,10 +7,14 @@ import type { HistoryPoint } from "@/lib/market-providers.server";
 const SITE = "https://mavik-marketatlas.lovable.app";
 
 const goldHistoryQuery = queryOptions({
-  queryKey: ["history", "GC=F", "10y", "1mo"],
-  queryFn: () => getHistory({ data: { symbol: "GC=F", range: "10y", interval: "1mo" } }),
+  queryKey: ["history", "GC=F", "10y", "1mo", "align:XAU"],
+  queryFn: () =>
+    getHistory({
+      data: { symbol: "GC=F", range: "10y", interval: "1mo", alignMetal: "XAU" },
+    }),
   staleTime: 60 * 60 * 1000,
 });
+
 
 export const Route = createFileRoute("/history/gold")({
   loader: ({ context }) => context.queryClient.ensureQueryData(goldHistoryQuery),

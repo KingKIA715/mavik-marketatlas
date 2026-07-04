@@ -134,22 +134,54 @@ export const triggerSync = createServerFn({ method: "POST" }).handler(async () =
 const SYMBOL_RE = /^[\^A-Z0-9.=-]{1,16}$/;
 const RANGE_RE = /^(1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$/;
 const INTERVAL_RE = /^(1d|1wk|1mo)$/;
+const ALIGN_METALS = ["XAU", "XAG", "XPT"] as const;
+type AlignMetal = (typeof ALIGN_METALS)[number];
 
 export const getHistory = createServerFn({ method: "GET" })
-  .inputValidator((data: { symbol: string; range?: string; interval?: string }) => {
-    if (!SYMBOL_RE.test(data.symbol)) throw new Error("Invalid symbol");
-    const range = data.range ?? "5y";
-    const interval = data.interval ?? "1mo";
-    if (!RANGE_RE.test(range)) throw new Error("Invalid range");
-    if (!INTERVAL_RE.test(interval)) throw new Error("Invalid interval");
-    return { symbol: data.symbol, range, interval };
-  })
+  .inputValidator(
+    (data: { symbol: string; range?: string; interval?: string; alignMetal?: string }) => {
+      if (!SYMBOL_RE.test(data.symbol)) throw new Error("Invalid symbol");
+      const range = data.range ?? "5y";
+      const interval = data.interval ?? "1mo";
+      if (!RANGE_RE.test(range)) throw new Error("Invalid range");
+      if (!INTERVAL_RE.test(interval)) throw new Error("Invalid interval");
+      const alignMetal =
+        data.alignMetal && (ALIGN_METALS as readonly string[]).includes(data.alignMetal)
+          ? (data.alignMetal as AlignMetal)
+          : undefined;
+      return { symbol: data.symbol, range, interval, alignMetal };
+    },
+  )
   .handler(async ({ data }): Promise<{ data: HistoryPoint[]; source: string }> => {
     setResponseHeader("cache-control", "public, max-age=86400, stale-while-revalidate=604800");
-    return cached(
+    const base = await cached(
       `hist:${data.symbol}:${data.range}:${data.interval}`,
       24 * ONE_HOUR,
       () => fetchHistory(data.symbol, data.range, data.interval),
     );
+
+    // When aligning to a live metal spot, rescale the entire series so the
+    // last close equals the current Metals.dev spot price. This keeps chart
+    // shape (percent moves, highs/lows) but syncs the visible price to the
+    // dashboard. Cached snapshot is reused — no extra provider call.
+    if (!data.alignMetal || base.data.length === 0) return base;
+    try {
+      const metals = await cached("metals", ONE_HOUR, fetchMetals);
+      const spot = metals.data[data.alignMetal];
+      const lastClose = base.data[base.data.length - 1].close;
+      if (!Number.isFinite(spot) || !Number.isFinite(lastClose) || lastClose <= 0) return base;
+      const factor = spot / lastClose;
+      if (Math.abs(factor - 1) < 1e-6) {
+        return { data: base.data, source: `${base.source} · aligned to ${metals.source}` };
+      }
+      const rescaled = base.data.map((p) => ({ date: p.date, close: p.close * factor }));
+      return {
+        data: rescaled,
+        source: `${base.source} · aligned to ${metals.source} spot`,
+      };
+    } catch {
+      return base;
+    }
   });
+
 

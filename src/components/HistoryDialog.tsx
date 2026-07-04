@@ -49,11 +49,17 @@ interface Props {
   symbol: string;
   /** Currency for tooltip/Y-axis formatting; pass empty string to use plain numbers. */
   currency?: string;
-  /** Multiplier applied to raw Yahoo close (USD/oz → local/g, FX inversion, etc). */
+  /** Multiplier applied to raw close (USD/oz → local/g, FX inversion, etc). */
   scale?: number;
   /** Optional unit label shown in tooltip (e.g. "per g"). */
   unitLabel?: string;
   tint?: string;
+  /**
+   * When set, the server rescales the Yahoo futures series so the last close
+   * equals the current Metals.dev spot price. Keeps series shape but syncs
+   * the visible price to the live dashboard value. Only "XAU", "XAG", "XPT".
+   */
+  alignMetal?: "XAU" | "XAG" | "XPT";
 }
 
 export function HistoryDialog({
@@ -65,6 +71,7 @@ export function HistoryDialog({
   scale = 1,
   unitLabel,
   tint = "#1f2937",
+  alignMetal,
 }: Props) {
   const fetcher = useServerFn(getHistory);
   const [range, setRange] = useState<Range>("5y");
@@ -76,12 +83,17 @@ export function HistoryDialog({
   useEffect(() => {
     if (!open) return;
     const interval = RANGE_INTERVAL[range];
-    const key = historyKey(symbol, range, interval);
+    // Cache key namespaces aligned series separately from raw Yahoo series.
+    const cacheKey = historyKey(
+      alignMetal ? `${symbol}@${alignMetal}` : symbol,
+      range,
+      interval,
+    );
     let cancelled = false;
     setError(null);
 
     (async () => {
-      const cached = await readHistory(key);
+      const cached = await readHistory(cacheKey);
       if (cancelled) return;
       if (cached) {
         setData(cached.data);
@@ -90,11 +102,13 @@ export function HistoryDialog({
       }
       setLoading(true);
       try {
-        const res = await fetcher({ data: { symbol, range, interval } });
+        const res = await fetcher({
+          data: { symbol, range, interval, ...(alignMetal ? { alignMetal } : {}) },
+        });
         if (cancelled) return;
         setData(res.data);
         setSource(res.source);
-        void writeHistory(key, res.data, res.source);
+        void writeHistory(cacheKey, res.data, res.source);
       } catch (e) {
         if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load");
       } finally {
@@ -105,7 +119,8 @@ export function HistoryDialog({
     return () => {
       cancelled = true;
     };
-  }, [open, range, symbol, fetcher]);
+  }, [open, range, symbol, alignMetal, fetcher]);
+
 
   const series = useMemo(
     () => (data ?? []).map((p) => ({ date: p.date, value: p.close * scale })),
