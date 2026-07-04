@@ -627,6 +627,7 @@ function MetalRow({
         scale={(def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx)}
         unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"}`}
         tint={metalCode === "XAU" ? "#d97706" : metalCode === "XAG" ? "#64748b" : "#475569"}
+        alignMetal={metalCode}
       />
       {isGold && historyKarat !== null ? (
         <HistoryDialog
@@ -641,8 +642,10 @@ function MetalRow({
           }
           unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"} · ${historyKarat}K`}
           tint="#d97706"
+          alignMetal="XAU"
         />
       ) : null}
+
     </>
   );
 }
