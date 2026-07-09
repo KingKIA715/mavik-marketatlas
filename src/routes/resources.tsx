@@ -330,7 +330,7 @@ function MetalCalculator({ data }: { data: MarketSnapshot }) {
   const [currency, setCurrency] = useState("INR");
 
   const spotUsdOz = data.metals[metal];
-  const fx = data.rates[currency] ?? 1;
+  const fx = data.rates.rates[currency] ?? 1;
   const pricePerOz = spotUsdOz * fx;
   const pricePerGram = pricePerOz / GRAMS_PER_TROY_OUNCE;
 
@@ -421,13 +421,13 @@ function CurrencyConverter({ data }: { data: MarketSnapshot }) {
   const [to, setTo] = useState("INR");
 
   const codes = useMemo(
-    () => Array.from(new Set(["USD", ...Object.keys(data.rates)])).sort(),
+    () => Array.from(new Set(["USD", ...Object.keys(data.rates.rates)])).sort(),
     [data.rates],
   );
 
   // rates are quoted vs USD (rates[USD] = 1). Convert via USD.
-  const fromRate = from === "USD" ? 1 : data.rates[from];
-  const toRate = to === "USD" ? 1 : data.rates[to];
+  const fromRate = from === "USD" ? 1 : data.rates.rates[from];
+  const toRate = to === "USD" ? 1 : data.rates.rates[to];
   const converted =
     Number.isFinite(fromRate) && Number.isFinite(toRate) && fromRate > 0
       ? (amount / fromRate) * toRate
