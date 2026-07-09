@@ -1,4 +1,4 @@
-// Provider adapters for metals, currency, stocks, crude oil + history.
+// Provider adapters for metals, currency, stocks, crypto, crude oil + history.
 // All raw values are USD; UI converts to display currency.
 
 /* ----------------------------------------------------------- HELPERS ----- */
@@ -70,7 +70,6 @@ export async function fetchRates(): Promise<{ data: Rates; source: string }> {
 
 /** Yesterday's USD rates (most recent business day before today) for 24h FX change. */
 export async function fetchRatesYesterday(): Promise<Rates> {
-  // Frankfurter "?base=USD" without a date returns latest; using a date in URL.
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - 1);
   const iso = d.toISOString().slice(0, 10);
@@ -123,14 +122,6 @@ async function metalsFromMetalpriceApi(key: string): Promise<MetalPrices> {
   });
 }
 
-/**
- * Metals.dev — primary provider. One request returns gold/silver/platinum in
- * USD per troy ounce (live, no delay on paid tiers). Free tier is
- * quota-limited, so we rotate across 3 keys by day-of-month:
- *   Days 1–10  → slot 0 (METALS_DEV_API_KEY)
- *   Days 11–20 → slot 1 (METALS_DEV_API_KEY_2)
- *   Days 21–31 → slot 2 (METALS_DEV_API_KEY_3)
- */
 async function metalsFromMetalsDev(key: string): Promise<MetalPrices> {
   return withRetry("metals.dev", async () => {
     const res = await fetch(
@@ -183,7 +174,6 @@ function rotatedOrder<T>(items: T[]): T[] {
 }
 
 export async function fetchMetals(): Promise<{ data: MetalPrices; source: string }> {
-  // 1) Primary: Metals.dev with day-of-month key rotation.
   const mdKeys = getMetalsDevKeys();
   for (const key of rotatedOrder(mdKeys)) {
     try {
@@ -195,7 +185,6 @@ export async function fetchMetals(): Promise<{ data: MetalPrices; source: string
     }
   }
 
-  // 2) Fallback: MetalpriceAPI with the same rotation strategy.
   const mpKeys = getMetalpriceKeys();
   for (const key of rotatedOrder(mpKeys)) {
     try {
@@ -207,8 +196,56 @@ export async function fetchMetals(): Promise<{ data: MetalPrices; source: string
     }
   }
 
-  // 3) Last resort: gold-api.com (per-metal calls, no key).
   return { data: await metalsFromGoldApi(), source: "gold-api.com" };
+}
+
+/* --------------------------------------------------------------- CRYPTO -- */
+
+export interface CryptoPrices {
+  BTC: number;
+  ETH: number;
+  SOL: number;
+}
+
+export interface CryptoChange {
+  BTC: { change: number; changePercent: number };
+  ETH: { change: number; changePercent: number };
+  SOL: { change: number; changePercent: number };
+}
+
+export async function fetchCrypto(): Promise<{
+  data: CryptoPrices;
+  changes: CryptoChange;
+  source: string;
+}> {
+  const symbols = ["BTC-USD", "ETH-USD", "SOL-USD"];
+  const quotes = await fetchQuotes(symbols);
+
+  const find = (sym: string) =>
+    quotes.data.find((q) => q.ticker === sym) ?? {
+      ticker: sym,
+      price: NaN,
+      change: 0,
+      changePercent: 0,
+    };
+
+  const btc = find("BTC-USD");
+  const eth = find("ETH-USD");
+  const sol = find("SOL-USD");
+
+  return {
+    data: {
+      BTC: btc.price,
+      ETH: eth.price,
+      SOL: sol.price,
+    },
+    changes: {
+      BTC: { change: btc.change, changePercent: btc.changePercent },
+      ETH: { change: eth.change, changePercent: eth.changePercent },
+      SOL: { change: sol.change, changePercent: sol.changePercent },
+    },
+    source: quotes.source,
+  };
 }
 
 /* --------------------------------------------------------------- YAHOO --- */
@@ -294,7 +331,7 @@ export async function fetchCrude(): Promise<{ data: Crude; source: string }> {
 /* ----------------------------------------------------------- HISTORY ----- */
 
 export interface HistoryPoint {
-  date: string; // ISO yyyy-mm-dd
+  date: string;
   close: number;
 }
 

@@ -1,4 +1,4 @@
-// MarketAtlas — countries, metals, stock universe, gasoline reference prices.
+// MarketAtlas — countries, metals, crypto, stock universe, gasoline reference prices.
 
 export type CountryCode = "IN" | "US" | "EU" | "GB" | "AE" | "JP" | "CN";
 
@@ -185,6 +185,64 @@ export const KARAT_PURITY: Record<number, number> = {
   18: 18 / 24,
 };
 
+/* ----------------------------------------------------------------- CRYPTO -- */
+
+export type CryptoCode = "BTC" | "ETH" | "SOL";
+
+export interface CryptoDef {
+  code: CryptoCode;
+  name: string;
+  yahoo: string; // Yahoo Finance symbol
+  icon: string;
+}
+
+export const CRYPTOS: CryptoDef[] = [
+  { code: "BTC", name: "Bitcoin", yahoo: "BTC-USD", icon: "₿" },
+  { code: "ETH", name: "Ethereum", yahoo: "ETH-USD", icon: "Ξ" },
+  { code: "SOL", name: "Solana", yahoo: "SOL-USD", icon: "◎" },
+];
+
+/** Crypto 24h change quotes use the same structure as stocks. */
+export const CRYPTO_SYMBOLS: Record<CryptoCode, string> = {
+  BTC: "BTC-USD",
+  ETH: "ETH-USD",
+  SOL: "SOL-USD",
+};
+
+/* ----------------------------------------------------------------- CURRENCY FLAGS & NAMES -- */
+
+export const CURRENCY_FLAGS: Record<string, string> = {
+  USD: "🇺🇸",
+  EUR: "🇪🇺",
+  GBP: "🇬🇧",
+  JPY: "🇯🇵",
+  AED: "🇦🇪",
+  INR: "🇮🇳",
+  CNY: "🇨🇳",
+  AUD: "🇦🇺",
+  CAD: "🇨🇦",
+  CHF: "🇨🇭",
+  SGD: "🇸🇬",
+  HKD: "🇭🇰",
+  SAR: "🇸🇦",
+};
+
+export const CURRENCY_NAMES: Record<string, string> = {
+  USD: "US Dollar",
+  EUR: "Euro",
+  GBP: "British Pound",
+  JPY: "Japanese Yen",
+  AED: "UAE Dirham",
+  INR: "Indian Rupee",
+  CNY: "Chinese Yuan",
+  AUD: "Australian Dollar",
+  CAD: "Canadian Dollar",
+  CHF: "Swiss Franc",
+  SGD: "Singapore Dollar",
+  HKD: "Hong Kong Dollar",
+  SAR: "Saudi Riyal",
+};
+
 /* ----------------------------------------------------------------- STOCKS -- */
 
 export interface StockDef {
@@ -296,6 +354,8 @@ export interface FuelReference {
 /**
  * Indicative retail fuel prices in LOCAL currency. Sourced from public
  * regional averages; refreshed periodically. Use as a reference, not a quote.
+ * NOTE: Petrol/diesel values here serve as fallback base prices when crude
+ * derivation is unavailable. The UI now derives live fuel prices from WTI crude.
  */
 export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
   IN: {
@@ -340,4 +400,19 @@ export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
     lpgDomestic: { price: 110, unit: "14.5 kg cylinder" },
     lpgCommercial: { price: 220, unit: "30 kg cylinder" },
   },
+};
+
+/**
+ * Fuel spread multipliers — retail price = (crude price per litre/gallon) × spread.
+ * These approximate refining, distribution, taxes, and dealer margins.
+ * Updated to reflect current market dynamics (2024–2026).
+ */
+export const FUEL_SPREAD: Record<CountryCode, { petrol: number; diesel: number }> = {
+  IN: { petrol: 1.42, diesel: 1.32 },
+  US: { petrol: 1.48, diesel: 1.58 },
+  EU: { petrol: 1.85, diesel: 1.72 },
+  GB: { petrol: 1.78, diesel: 1.82 },
+  AE: { petrol: 1.12, diesel: 1.18 },
+  JP: { petrol: 1.65, diesel: 1.52 },
+  CN: { petrol: 1.38, diesel: 1.28 },
 };
