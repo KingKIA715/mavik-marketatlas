@@ -62,7 +62,7 @@ function ResourcesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-[color:var(--ink)] text-white">
+      <header className="border-b border-border bg-slate-900 text-white">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
           <div className="min-w-0">
             <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
