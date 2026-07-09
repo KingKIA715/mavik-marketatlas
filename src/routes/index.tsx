@@ -1003,7 +1003,7 @@ function Currencies({
   return (
     <section>
       <SectionHeader title="Currencies" hint={`1 ${base} converts to`} />
-      <div className="rounded-2xl bg-[color:var(--ink)] p-5 text-white shadow-lg">
+      <div className="rounded-2xl bg-slate-900 p-5 text-white shadow-lg">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((ccy) => (
             <CurrencyTile
