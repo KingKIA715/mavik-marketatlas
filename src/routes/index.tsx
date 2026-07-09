@@ -32,7 +32,9 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { HistoryDialog } from "@/components/HistoryDialog";
-import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel, RefreshCw } from "lucide-react";
+import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel, RefreshCw, Calculator } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { useQueryClient } from "@tanstack/react-query";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
