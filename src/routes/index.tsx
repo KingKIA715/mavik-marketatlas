@@ -322,6 +322,15 @@ function Header({
               <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
               {syncing ? "Syncing…" : "Sync now"}
             </button>
+            <Link
+              to="/resources"
+              title="Financial calculators & tools"
+              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
+            >
+              <Calculator className="h-3.5 w-3.5" />
+              Resources
+            </Link>
+            <ThemeToggle />
           </div>
           <div className="flex items-center gap-3">
             <LocalDate iso={fetchedAt} locale={def.locale} />
