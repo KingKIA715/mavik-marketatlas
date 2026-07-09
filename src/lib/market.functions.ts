@@ -7,14 +7,17 @@ import {
   fetchRates,
   fetchRatesYesterday,
   fetchCrude,
+  fetchCrypto,
   fetchHistory,
   type Crude,
+  type CryptoPrices,
+  type CryptoChange,
   type HistoryPoint,
   type MetalPrices,
   type Quote,
   type Rates,
 } from "./market-providers.server";
-import { COUNTRIES, type MetalCode } from "./market-config";
+import { COUNTRIES, type MetalCode, type CryptoCode } from "./market-config";
 
 export interface MarketSnapshot {
   fetchedAt: string;
@@ -22,13 +25,13 @@ export interface MarketSnapshot {
   ratesYesterday: Rates;
   ratesSource: string;
   metals: MetalPrices;
-  /** 24h change for each metal (percent) derived from Yahoo futures. */
   metalsChange: Record<MetalCode, { change: number; changePercent: number }>;
   metalsSource: string;
-  /** Major indices (one fetch shared across countries). */
+  crypto: CryptoPrices;
+  cryptoChange: CryptoChange;
+  cryptoSource: string;
   quotes: Quote[];
   quotesSource: string;
-  /** Per-country basket quotes for top gainers/losers. */
   baskets: Record<string, Quote[]>;
   crude: Crude;
   crudeSource: string;
@@ -55,7 +58,7 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
       "public, max-age=900, stale-while-revalidate=86400",
     );
 
-    const [ratesR, ratesYR, metalsR, indicesR, basketR, crudeR, metalQuotesR] = await Promise.all([
+    const [ratesR, ratesYR, metalsR, indicesR, basketR, crudeR, metalQuotesR, cryptoR] = await Promise.all([
       cached("rates", ONE_HOUR, fetchRates),
       cached("rates-yesterday", ONE_HOUR, fetchRatesYesterday),
       cached("metals", ONE_HOUR, fetchMetals),
@@ -63,6 +66,7 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
       cached("basket", FIFTEEN_MIN, () => fetchQuotes(ALL_BASKET)),
       cached("crude", FIFTEEN_MIN, fetchCrude),
       cached("metal-quotes", FIFTEEN_MIN, () => fetchQuotes(Object.values(METAL_SYMBOLS))),
+      cached("crypto", FIFTEEN_MIN, fetchCrypto),
     ]);
 
     const baskets: Record<string, Quote[]> = {};
@@ -86,6 +90,9 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
       metals: metalsR.data,
       metalsChange,
       metalsSource: metalsR.source,
+      crypto: cryptoR.data,
+      cryptoChange: cryptoR.changes,
+      cryptoSource: cryptoR.source,
       quotes: indicesR.data,
       quotesSource: indicesR.source,
       baskets,
@@ -95,10 +102,6 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
   },
 );
 
-/**
- * Manual sync — clears the in-memory cache and rebuilds the snapshot.
- * Returns the new fetchedAt and per-source labels so the UI can show status.
- */
 export const triggerSync = createServerFn({ method: "POST" }).handler(async () => {
   const startedAt = Date.now();
   const cleared = clearCache();
@@ -112,6 +115,7 @@ export const triggerSync = createServerFn({ method: "POST" }).handler(async () =
       sources: {
         rates: snap.ratesSource,
         metals: snap.metalsSource,
+        crypto: snap.cryptoSource,
         quotes: snap.quotesSource,
         crude: snap.crudeSource,
       },
@@ -126,12 +130,7 @@ export const triggerSync = createServerFn({ method: "POST" }).handler(async () =
   }
 });
 
-
-/* ----------------------------- History (lazy) ---------------------------- */
-
-// Allow Yahoo symbols for futures (GC=F), indices (^GSPC, ^NSEI, 000001.SS),
-// equities (AAPL, RELIANCE.NS, 7203.T), and FX pairs (EURUSD=X).
-const SYMBOL_RE = /^[\^A-Z0-9.=-]{1,16}$/;
+const SYMBOL_RE = /^[\^A-Z0-9.=-]{1,20}$/;
 const RANGE_RE = /^(1mo|3mo|6mo|1y|2y|5y|10y|ytd|max)$/;
 const INTERVAL_RE = /^(1d|1wk|1mo)$/;
 const ALIGN_METALS = ["XAU", "XAG", "XPT"] as const;
@@ -160,10 +159,6 @@ export const getHistory = createServerFn({ method: "GET" })
       () => fetchHistory(data.symbol, data.range, data.interval),
     );
 
-    // When aligning to a live metal spot, rescale the entire series so the
-    // last close equals the current Metals.dev spot price. This keeps chart
-    // shape (percent moves, highs/lows) but syncs the visible price to the
-    // dashboard. Cached snapshot is reused — no extra provider call.
     if (!data.alignMetal || base.data.length === 0) return base;
     try {
       const metals = await cached("metals", ONE_HOUR, fetchMetals);
@@ -183,5 +178,3 @@ export const getHistory = createServerFn({ method: "GET" })
       return base;
     }
   });
-
-

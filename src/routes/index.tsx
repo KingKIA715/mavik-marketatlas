@@ -7,17 +7,21 @@ import {
   COUNTRY_ORDER,
   COUNTRY_SHORT,
   FUEL_REFERENCE,
+  FUEL_SPREAD,
   GRAMS_PER_KG,
   GRAMS_PER_SOVEREIGN,
   GRAMS_PER_TROY_OUNCE,
   INDIA_GST,
   KARAT_PURITY,
   METALS,
-  RETAIL_PREMIUM,
   STOCKS,
   STOCK_NAMES,
+  CRYPTOS,
+  CURRENCY_FLAGS,
+  CURRENCY_NAMES,
   type CountryCode,
   type MetalCode,
+  type CryptoCode,
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, type MarketSnapshot } from "@/lib/market.functions";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
@@ -31,11 +35,28 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
-import { LineChart as LineChartIcon, TrendingDown, TrendingUp, Fuel, RefreshCw, Calculator } from "lucide-react";
-import { Link } from "@tanstack/react-router";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { MobileNav } from "@/components/MobileNav";
+import {
+  LineChart as LineChartIcon,
+  TrendingDown,
+  TrendingUp,
+  Fuel,
+  RefreshCw,
+  Calculator,
+} from "lucide-react";
+import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  MetalRowSkeleton,
+  IndexCardSkeleton,
+  MoversListSkeleton,
+  FuelTileSkeleton,
+  CurrencyTileSkeleton,
+  CryptoCardSkeleton,
+} from "@/components/SkeletonLoaders";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
@@ -52,13 +73,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Live gold, silver, platinum prices, stock indices, fuel rates and currency exchange across India, US, Europe, UK and UAE. Free, refreshed hourly.",
+          "Live gold, silver, platinum, crypto prices, stock indices, fuel rates and currency exchange across India, US, Europe, UK and UAE. Free, refreshed hourly.",
       },
       { property: "og:title", content: "MarketAtlas — Global Financial Hub" },
       {
         property: "og:description",
         content:
-          "Metals, stocks, fuel and FX — in your country, your currency, your units.",
+          "Metals, crypto, stocks, fuel and FX — in your country, your currency, your units.",
       },
     ],
   }),
@@ -67,13 +88,16 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
 });
 
+/* =====================================================================
+ * MAIN DASHBOARD
+ * ===================================================================== */
+
 function Dashboard() {
   const fetcher = useServerFn(getMarketSnapshot);
-  const { data } = useSuspenseQuery(snapshotQuery(fetcher));
+  const { data, isLoading } = useSuspenseQuery(snapshotQuery(fetcher));
   const [country, setCountry] = useState<CountryCode>("IN");
   const [includeGST, setIncludeGST] = useState(false);
 
-  // Sync country with ?country= URL param (client-only to avoid SSR mismatch)
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search).get("country")?.toUpperCase();
@@ -106,9 +130,8 @@ function Dashboard() {
 
       <main
         suppressHydrationWarning
-        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-6 sm:px-6 sm:pb-16 sm:pt-8"
       >
-
         <PreciousMetals
           country={country}
           metals={data.metals}
@@ -118,12 +141,22 @@ function Dashboard() {
           currency={def.currency}
           includeGST={includeGST}
           onGSTChange={setIncludeGST}
+          isLoading={isLoading}
+        />
+
+        <CryptoSection
+          crypto={data.crypto}
+          cryptoChange={data.cryptoChange}
+          toLocal={toLocal}
+          currency={def.currency}
+          isLoading={isLoading}
         />
 
         <StockMarket
           country={country}
           quotes={data.quotes}
           basket={data.baskets[country] ?? []}
+          isLoading={isLoading}
         />
 
         <Gasoline
@@ -131,6 +164,7 @@ function Dashboard() {
           crude={data.crude}
           toLocal={toLocal}
           currency={def.currency}
+          isLoading={isLoading}
         />
 
         <Currencies
@@ -138,6 +172,7 @@ function Dashboard() {
           ratesYesterday={data.ratesYesterday.rates}
           base={def.currency}
           currency={def.currency}
+          isLoading={isLoading}
         />
 
         <Footer
@@ -146,11 +181,100 @@ function Dashboard() {
           sources={{
             metals: data.metalsSource,
             rates: data.ratesSource,
+            crypto: data.cryptoSource,
             quotes: data.quotesSource,
             crude: data.crudeSource,
           }}
         />
       </main>
+
+      <MobileNav />
+    </div>
+  );
+}
+
+/* =====================================================================
+ * LOADING STATES
+ * ===================================================================== */
+
+function SectionLoadingState({ type }: { type: "metals" | "crypto" | "stocks" | "fuel" | "currencies" }) {
+  if (type === "metals") {
+    return (
+      <section>
+        <SectionHeaderSkeleton />
+        <div className="space-y-4">
+          <MetalRowSkeleton />
+          <MetalRowSkeleton />
+          <MetalRowSkeleton />
+        </div>
+      </section>
+    );
+  }
+  if (type === "crypto") {
+    return (
+      <section>
+        <SectionHeaderSkeleton />
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <CryptoCardSkeleton />
+          <CryptoCardSkeleton />
+          <CryptoCardSkeleton />
+        </div>
+      </section>
+    );
+  }
+  if (type === "stocks") {
+    return (
+      <section>
+        <SectionHeaderSkeleton />
+        <div className="grid gap-3 sm:grid-cols-3">
+          <IndexCardSkeleton />
+          <IndexCardSkeleton />
+          <IndexCardSkeleton />
+        </div>
+        <div className="mt-6 grid gap-3 lg:grid-cols-2">
+          <MoversListSkeleton />
+          <MoversListSkeleton />
+        </div>
+      </section>
+    );
+  }
+  if (type === "fuel") {
+    return (
+      <section>
+        <SectionHeaderSkeleton />
+        <div className="grid gap-3 lg:grid-cols-5">
+          <div className="lg:col-span-2">
+            <FuelTileSkeleton />
+          </div>
+          <FuelTileSkeleton />
+          <FuelTileSkeleton />
+          <FuelTileSkeleton />
+          <FuelTileSkeleton />
+        </div>
+      </section>
+    );
+  }
+  return (
+    <section>
+      <SectionHeaderSkeleton />
+      <div className="rounded-2xl bg-slate-900 p-5">
+        <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 11 }).map((_, i) => (
+            <CurrencyTileSkeleton key={i} />
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function SectionHeaderSkeleton() {
+  return (
+    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <Skeleton className="h-6 w-40" />
+        <Skeleton className="mt-1 h-3 w-56" />
+      </div>
     </div>
   );
 }
@@ -277,7 +401,6 @@ function Header({
   return (
     <header className="border-b border-border bg-slate-900 text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        {/* LEFT — brand + slogan + mobile nav */}
         <div className="min-w-0">
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -301,7 +424,6 @@ function Header({
           </p>
         </div>
 
-        {/* RIGHT — country selector + local date + live + sync */}
         <div className="flex flex-col gap-2 sm:items-end">
           <div className="flex w-full items-center gap-2 sm:w-auto">
             <Select value={country} onValueChange={(v) => onCountryChange(v as CountryCode)}>
@@ -441,6 +563,7 @@ function PreciousMetals({
   currency,
   includeGST,
   onGSTChange,
+  isLoading,
 }: {
   country: CountryCode;
   metals: MarketSnapshot["metals"];
@@ -450,6 +573,7 @@ function PreciousMetals({
   currency: string;
   includeGST: boolean;
   onGSTChange: (v: boolean) => void;
+  isLoading: boolean;
 }) {
   const def = COUNTRIES[country];
   const premium = RETAIL_PREMIUM[country];
@@ -461,6 +585,10 @@ function PreciousMetals({
     const prem = premium?.[code] ?? 1;
     return toLocal(spotUsdG) * prem * gstMul;
   };
+
+  if (isLoading) {
+    return <SectionLoadingState type="metals" />;
+  }
 
   return (
     <section>
@@ -671,7 +799,6 @@ function MetalRow({
           alignMetal="XAU"
         />
       ) : null}
-
     </>
   );
 }
@@ -703,17 +830,143 @@ function PriceCell({
 }
 
 /* =====================================================================
- * 2) STOCK MARKET
+ * 2) CRYPTO SECTION
+ * ===================================================================== */
+
+function CryptoSection({
+  crypto,
+  cryptoChange,
+  toLocal,
+  currency,
+  isLoading,
+}: {
+  crypto: MarketSnapshot["crypto"];
+  cryptoChange: MarketSnapshot["cryptoChange"];
+  toLocal: (usd: number) => number;
+  currency: string;
+  isLoading: boolean;
+}) {
+  if (isLoading) {
+    return <SectionLoadingState type="crypto" />;
+  }
+
+  return (
+    <section>
+      <SectionHeader
+        title="Cryptocurrency"
+        hint={`Live prices · ${currency} · 24h change`}
+      />
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {CRYPTOS.map((c) => (
+          <CryptoCard
+            key={c.code}
+            cryptoDef={c}
+            price={toLocal(crypto[c.code])}
+            change={cryptoChange[c.code]}
+            currency={currency}
+          />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function CryptoCard({
+  cryptoDef,
+  price,
+  change,
+  currency,
+}: {
+  cryptoDef: { code: CryptoCode; name: string; yahoo: string; icon: string };
+  price: number;
+  change: { change: number; changePercent: number };
+  currency: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const valid = Number.isFinite(price) && price > 0;
+
+  const CRYPTO_TINT: Record<CryptoCode, { bg: string; text: string; ring: string }> = {
+    BTC: { bg: "bg-orange-50", text: "text-orange-700", ring: "ring-orange-200" },
+    ETH: { bg: "bg-indigo-50", text: "text-indigo-700", ring: "ring-indigo-200" },
+    SOL: { bg: "bg-teal-50", text: "text-teal-700", ring: "ring-teal-200" },
+  };
+  const tint = CRYPTO_TINT[cryptoDef.code];
+
+  return (
+    <>
+      <article className="rounded-xl border border-border bg-card p-4 shadow-sm transition-shadow hover:shadow-md">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <span
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold ring-1",
+                tint.bg,
+                tint.text,
+                tint.ring,
+              )}
+            >
+              {cryptoDef.icon}
+            </span>
+            <div>
+              <div className="text-sm font-bold text-foreground">{cryptoDef.name}</div>
+              <div className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {cryptoDef.code}
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-surface-alt"
+          >
+            <LineChartIcon className="h-3 w-3" />
+            History
+          </button>
+        </div>
+
+        {valid ? (
+          <>
+            <div className="mt-3 font-mono text-xl font-bold tabular text-foreground">
+              {fmtCurrency(price, currency, { maximumFractionDigits: 0 })}
+            </div>
+            <ChangeBadge
+              change={toLocal(change.change)}
+              changePercent={change.changePercent}
+              currency={currency}
+              digits={0}
+            />
+          </>
+        ) : (
+          <div className="mt-3 text-sm text-muted-foreground">Price unavailable</div>
+        )}
+      </article>
+
+      <HistoryDialog
+        open={open}
+        onOpenChange={setOpen}
+        title={cryptoDef.name}
+        symbol={cryptoDef.yahoo}
+        currency={currency}
+        tint={cryptoDef.code === "BTC" ? "#f97316" : cryptoDef.code === "ETH" ? "#6366f1" : "#14b8a6"}
+        unitLabel={currency}
+      />
+    </>
+  );
+}
+
+/* =====================================================================
+ * 3) STOCK MARKET
  * ===================================================================== */
 
 function StockMarket({
   country,
   quotes,
   basket,
+  isLoading,
 }: {
   country: CountryCode;
   quotes: MarketSnapshot["quotes"];
   basket: MarketSnapshot["quotes"];
+  isLoading: boolean;
 }) {
   const def = COUNTRIES[country];
 
@@ -722,9 +975,30 @@ function StockMarket({
     [quotes, def.stockIndices],
   );
 
-  const sorted = [...basket].sort((a, b) => b.changePercent - a.changePercent);
-  const gainers = sorted.slice(0, 5);
-  const losers = sorted.slice(-5).reverse();
+  const validBasket = useMemo(() =>
+    basket.filter((q) => Number.isFinite(q.changePercent)),
+    [basket]
+  );
+
+  const gainers = useMemo(() =>
+    validBasket
+      .filter((q) => q.changePercent > 0)
+      .sort((a, b) => b.changePercent - a.changePercent)
+      .slice(0, 5),
+    [validBasket]
+  );
+
+  const losers = useMemo(() =>
+    validBasket
+      .filter((q) => q.changePercent < 0)
+      .sort((a, b) => a.changePercent - b.changePercent)
+      .slice(0, 5),
+    [validBasket]
+  );
+
+  if (isLoading) {
+    return <SectionLoadingState type="stocks" />;
+  }
 
   return (
     <section>
@@ -733,7 +1007,6 @@ function StockMarket({
         hint={`${def.flag} ${def.name} · indices and large-cap movers`}
       />
 
-      {/* Indices */}
       <div className="grid gap-3 sm:grid-cols-3">
         {localIndices.length === 0 ? (
           <div className="col-span-full rounded-xl border border-border bg-card p-4 text-center text-sm text-muted-foreground">
@@ -744,7 +1017,6 @@ function StockMarket({
         )}
       </div>
 
-      {/* Gainers / Losers */}
       <div className="mt-6 grid gap-3 lg:grid-cols-2">
         <MoversList title="Top Gainers" icon="up" rows={gainers} />
         <MoversList title="Top Losers" icon="down" rows={losers} />
@@ -851,7 +1123,7 @@ function MoversList({
 }
 
 /* =====================================================================
- * 3) GASOLINE
+ * 4) GASOLINE
  * ===================================================================== */
 
 function Gasoline({
@@ -859,16 +1131,41 @@ function Gasoline({
   crude,
   toLocal,
   currency,
+  isLoading,
 }: {
   country: CountryCode;
   crude: MarketSnapshot["crude"];
   toLocal: (usd: number) => number;
   currency: string;
+  isLoading: boolean;
 }) {
   const def = COUNTRIES[country];
   const fuel = FUEL_REFERENCE[country];
   const crudeLocal = toLocal(crude.pricePerBarrelUSD);
   const up = crude.change >= 0;
+
+  const spread = FUEL_SPREAD[country];
+  const crudePerUnit = def.fuelVolumeUnit === "gal"
+    ? crudeLocal / 42
+    : crudeLocal / 159;
+
+  const derivedPetrol = Number.isFinite(crudePerUnit) && crudePerUnit > 0
+    ? crudePerUnit * spread.petrol
+    : NaN;
+  const derivedDiesel = Number.isFinite(crudePerUnit) && crudePerUnit > 0
+    ? crudePerUnit * spread.diesel
+    : NaN;
+
+  const petrolPrice = Number.isFinite(derivedPetrol) && derivedPetrol > 0
+    ? derivedPetrol
+    : fuel.petrol;
+  const dieselPrice = Number.isFinite(derivedDiesel) && derivedDiesel > 0
+    ? derivedDiesel
+    : fuel.diesel;
+
+  if (isLoading) {
+    return <SectionLoadingState type="fuel" />;
+  }
 
   return (
     <section>
@@ -878,7 +1175,6 @@ function Gasoline({
       />
 
       <div className="grid gap-3 lg:grid-cols-5">
-        {/* Crude */}
         <div className="rounded-xl border border-border bg-card p-4 shadow-sm lg:col-span-2">
           <div className="flex items-center gap-2">
             <Fuel className="h-4 w-4 text-muted-foreground" />
@@ -909,17 +1205,19 @@ function Gasoline({
 
         <FuelTile
           label="Petrol"
-          value={fuel.petrol}
+          value={petrolPrice}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
           changePercent={crude.changePercent}
+          derived={Number.isFinite(derivedPetrol) && derivedPetrol > 0}
         />
         <FuelTile
           label="Diesel"
-          value={fuel.diesel}
+          value={dieselPrice}
           unit={`per ${def.fuelVolumeUnit}`}
           currency={currency}
           changePercent={crude.changePercent}
+          derived={Number.isFinite(derivedDiesel) && derivedDiesel > 0}
         />
         <FuelTile
           label="LPG (Domestic)"
@@ -935,7 +1233,7 @@ function Gasoline({
         />
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground">
-        Retail petrol/diesel/LPG are indicative regional reference prices and vary by city, dealer, and date.
+        Retail petrol/diesel are derived from live WTI crude with regional refining spreads. LPG prices are indicative regional references and vary by city, dealer, and date.
       </p>
     </section>
   );
@@ -947,18 +1245,27 @@ function FuelTile({
   unit,
   currency,
   changePercent,
+  derived,
 }: {
   label: string;
   value: number;
   unit: string;
   currency: string;
   changePercent?: number;
+  derived?: boolean;
 }) {
   const hasChange = typeof changePercent === "number" && Number.isFinite(changePercent);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
-      <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-        {label}
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          {label}
+        </span>
+        {derived ? (
+          <span className="rounded-full bg-emerald-50 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-600 ring-1 ring-emerald-200">
+            live
+          </span>
+        ) : null}
       </div>
       <div className="mt-1.5 font-mono text-lg font-bold tabular text-foreground">
         {fmtCurrency(value, currency, { maximumFractionDigits: 2 })}
@@ -978,7 +1285,7 @@ function FuelTile({
 }
 
 /* =====================================================================
- * 4) CURRENCIES
+ * 5) CURRENCIES
  * ===================================================================== */
 
 function Currencies({
@@ -986,11 +1293,13 @@ function Currencies({
   ratesYesterday,
   base,
   currency,
+  isLoading,
 }: {
   rates: Record<string, number>;
   ratesYesterday: Record<string, number>;
   base: string;
   currency: string;
+  isLoading: boolean;
 }) {
   const baseRate = rates[base];
   const baseRateY = ratesYesterday[base];
@@ -999,6 +1308,10 @@ function Currencies({
     "CNY", "AUD", "CAD", "CHF", "SGD", "HKD",
   ];
   const list = featured.filter((c) => c !== base && rates[c]);
+
+  if (isLoading) {
+    return <SectionLoadingState type="currencies" />;
+  }
 
   return (
     <section>
@@ -1045,21 +1358,28 @@ function CurrencyTile({
   const pct =
     Number.isFinite(perBaseY) && perBaseY ? ((perBase - perBaseY) / perBaseY) * 100 : 0;
   const up = pct >= 0;
+
+  const flag = CURRENCY_FLAGS[ccy] || "🏳";
+  const name = CURRENCY_NAMES[ccy] || ccy;
+
   return (
     <div className="flex flex-col gap-0.5 border-b border-white/10 pb-2">
       <div className="flex items-baseline justify-between">
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/80 hover:text-white"
+          className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white/80 hover:text-white"
           title={`${base} → ${ccy} history`}
         >
-          {ccy} <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
+          <span className="text-sm" aria-hidden>{flag}</span>
+          <span>{ccy}</span>
+          <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
         </button>
         <span className="font-mono text-sm font-medium tabular text-white">
           {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
         </span>
       </div>
+      <div className="text-[9px] text-white/40 truncate">{name}</div>
       {pct !== 0 ? (
         <div
           className="text-right font-mono text-[12px] font-semibold tabular"
@@ -1094,7 +1414,7 @@ function Footer({
 }: {
   fetchedAt: string;
   country: CountryCode;
-  sources: { metals: string; rates: string; quotes: string; crude: string };
+  sources: { metals: string; rates: string; crypto: string; quotes: string; crude: string };
 }) {
   const [timeText, setTimeText] = useState("");
   const def = COUNTRIES[country];
@@ -1125,10 +1445,10 @@ function Footer({
         </span>
       </div>
       <div className="mt-1.5 font-mono text-[10px] text-muted-foreground">
-        Sources: metals — {sources.metals} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
+        Sources: metals — {sources.metals} · crypto — {sources.crypto} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
       </div>
       <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground">
-        Data: {sources.metals} · Rates: {sources.rates} · Last sync:{" "}
+        Data: {sources.metals} · Rates: {sources.rates} · Crypto: {sources.crypto} · Last sync:{" "}
         {new Date(fetchedAt).toISOString().slice(11, 16)} UTC
       </div>
     </footer>
