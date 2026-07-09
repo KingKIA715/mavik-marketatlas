@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as ResourcesRouteImport } from './routes/resources'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as HistoryGoldRouteImport } from './routes/history.gold'
 import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
@@ -17,6 +18,11 @@ import { Route as ApiPublicSyncRouteImport } from './routes/api/public/sync'
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResourcesRoute = ResourcesRouteImport.update({
+  id: '/resources',
+  path: '/resources',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -37,12 +43,14 @@ const ApiPublicSyncRoute = ApiPublicSyncRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/resources': typeof ResourcesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/resources': typeof ResourcesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
@@ -50,20 +58,33 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/resources': typeof ResourcesRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/history/gold': typeof HistoryGoldRoute
   '/api/public/sync': typeof ApiPublicSyncRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/sitemap.xml' | '/history/gold' | '/api/public/sync'
+  fullPaths:
+    | '/'
+    | '/resources'
+    | '/sitemap.xml'
+    | '/history/gold'
+    | '/api/public/sync'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/sitemap.xml' | '/history/gold' | '/api/public/sync'
-  id: '__root__' | '/' | '/sitemap.xml' | '/history/gold' | '/api/public/sync'
+  to: '/' | '/resources' | '/sitemap.xml' | '/history/gold' | '/api/public/sync'
+  id:
+    | '__root__'
+    | '/'
+    | '/resources'
+    | '/sitemap.xml'
+    | '/history/gold'
+    | '/api/public/sync'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ResourcesRoute: typeof ResourcesRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   HistoryGoldRoute: typeof HistoryGoldRoute
   ApiPublicSyncRoute: typeof ApiPublicSyncRoute
@@ -76,6 +97,13 @@ declare module '@tanstack/react-router' {
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/resources': {
+      id: '/resources'
+      path: '/resources'
+      fullPath: '/resources'
+      preLoaderRoute: typeof ResourcesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -104,6 +132,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ResourcesRoute: ResourcesRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   HistoryGoldRoute: HistoryGoldRoute,
   ApiPublicSyncRoute: ApiPublicSyncRoute,
