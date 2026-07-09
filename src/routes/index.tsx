@@ -275,13 +275,27 @@ function Header({
   };
 
   return (
-    <header className="border-b border-border bg-[color:var(--ink)] text-white">
+    <header className="border-b border-border bg-slate-900 text-white">
       <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        {/* LEFT — brand + slogan */}
+        {/* LEFT — brand + slogan + mobile nav */}
         <div className="min-w-0">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Market<span className="text-[color:var(--brand)]">Atlas</span> — Global Financial Hub
-          </h1>
+          <div className="flex items-start justify-between gap-2">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Market<span className="text-[color:var(--brand)]">Atlas</span>
+              <span className="hidden sm:inline"> — Global Financial Hub</span>
+            </h1>
+            <div className="flex shrink-0 items-center gap-2 sm:hidden">
+              <Link
+                to="/resources"
+                title="Financial calculators & tools"
+                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10"
+              >
+                <Calculator className="h-3.5 w-3.5" />
+                Tools
+              </Link>
+              <ThemeToggle />
+            </div>
+          </div>
           <p className="mt-1 max-w-md text-xs text-white/85 sm:text-sm">
             Global financial hub for common people.
           </p>
@@ -325,13 +339,14 @@ function Header({
             <Link
               to="/resources"
               title="Financial calculators & tools"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
+              className="hidden sm:inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
             >
               <Calculator className="h-3.5 w-3.5" />
               Resources
             </Link>
-            <ThemeToggle />
+            <span className="hidden sm:inline-flex"><ThemeToggle /></span>
           </div>
+
           <div className="flex items-center gap-3">
             <LocalDate iso={fetchedAt} locale={def.locale} />
             <span className="inline-flex items-center gap-1.5">
