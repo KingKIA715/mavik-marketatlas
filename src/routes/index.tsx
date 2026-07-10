@@ -14,6 +14,7 @@ import {
   INDIA_GST,
   KARAT_PURITY,
   METALS,
+  RETAIL_PREMIUM,
   STOCKS,
   STOCK_NAMES,
   CRYPTOS,
@@ -864,7 +865,9 @@ function CryptoSection({
             price={toLocal(crypto[c.code])}
             change={cryptoChange[c.code]}
             currency={currency}
+            toLocal={toLocal}
           />
+
         ))}
       </div>
     </section>
@@ -876,11 +879,13 @@ function CryptoCard({
   price,
   change,
   currency,
+  toLocal,
 }: {
   cryptoDef: { code: CryptoCode; name: string; yahoo: string; icon: string };
   price: number;
   change: { change: number; changePercent: number };
   currency: string;
+  toLocal: (usd: number) => number;
 }) {
   const [open, setOpen] = useState(false);
   const valid = Number.isFinite(price) && price > 0;
