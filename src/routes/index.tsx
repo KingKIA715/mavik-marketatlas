@@ -865,7 +865,9 @@ function CryptoSection({
             price={toLocal(crypto[c.code])}
             change={cryptoChange[c.code]}
             currency={currency}
+            toLocal={toLocal}
           />
+
         ))}
       </div>
     </section>
