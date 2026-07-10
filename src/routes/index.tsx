@@ -879,11 +879,13 @@ function CryptoCard({
   price,
   change,
   currency,
+  toLocal,
 }: {
   cryptoDef: { code: CryptoCode; name: string; yahoo: string; icon: string };
   price: number;
   change: { change: number; changePercent: number };
   currency: string;
+  toLocal: (usd: number) => number;
 }) {
   const [open, setOpen] = useState(false);
   const valid = Number.isFinite(price) && price > 0;
