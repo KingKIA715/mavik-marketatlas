@@ -7,6 +7,8 @@ import {
 } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
+import appCss from "@/styles.css?url";
+import "@/styles.css";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -16,6 +18,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "theme-color", content: "#0f172a" },
     ],
     links: [
+      { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico" },
     ],
   }),
