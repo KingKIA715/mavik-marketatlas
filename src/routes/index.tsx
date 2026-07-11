@@ -123,13 +123,9 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header
-        country={country}
-        onCountryChange={setCountry}
-        fetchedAt={data.fetchedAt}
-      />
+      <Header fetchedAt={data.fetchedAt} locale={def.locale} />
 
-      <ToolsBar country={country} selectedAsset={selectedAsset} onAssetChange={setSelectedAsset} />
+      <ToolsBar />
 
       <CountryTiles country={country} onChange={setCountry} />
 
@@ -137,54 +133,9 @@ function Dashboard() {
 
       <main
         suppressHydrationWarning
-        className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-6 sm:px-6 sm:pb-16 sm:pt-8"
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
-        {!selectedAsset ? (
-          <>
-            <PreciousMetals
-              country={country}
-              metals={data.metals}
-              metalsChange={data.metalsChange}
-              toLocal={toLocal}
-              fx={fx}
-              currency={def.currency}
-              includeGST={includeGST}
-              onGSTChange={setIncludeGST}
-              isLoading={isLoading}
-            />
-
-            <CryptoSection
-              crypto={data.crypto}
-              cryptoChange={data.cryptoChange}
-              toLocal={toLocal}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-
-            <StockMarket
-              country={country}
-              quotes={data.quotes}
-              basket={data.baskets[country] ?? []}
-              isLoading={isLoading}
-            />
-
-            <Gasoline
-              country={country}
-              crude={data.crude}
-              toLocal={toLocal}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-
-            <Currencies
-              rates={data.rates.rates}
-              ratesYesterday={data.ratesYesterday.rates}
-              base={def.currency}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-          </>
-        ) : selectedAsset === "metals" ? (
+        {(!selectedAsset || selectedAsset === "metals") && (
           <PreciousMetals
             country={country}
             metals={data.metals}
@@ -196,7 +147,8 @@ function Dashboard() {
             onGSTChange={setIncludeGST}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "crypto" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "crypto") && (
           <CryptoSection
             crypto={data.crypto}
             cryptoChange={data.cryptoChange}
@@ -204,14 +156,16 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "stocks" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "stocks") && (
           <StockMarket
             country={country}
             quotes={data.quotes}
             basket={data.baskets[country] ?? []}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "crude" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "crude") && (
           <Gasoline
             country={country}
             crude={data.crude}
@@ -219,7 +173,8 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "fx" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "fx") && (
           <Currencies
             rates={data.rates.rates}
             ratesYesterday={data.ratesYesterday.rates}
@@ -227,7 +182,7 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : null}
+        )}
 
         <Footer sources={{
           metals: data.metalsSource,
@@ -237,8 +192,6 @@ function Dashboard() {
           crude: data.crudeSource,
         }} />
       </main>
-
-      <MobileNav />
     </div>
   );
 }
