@@ -602,6 +602,13 @@ function PreciousMetals({
         ) : null}
       </SectionHeader>
 
+      <div className="mb-5 grid grid-cols-3 gap-3">
+        {METALS.map((m) => (
+          <MetalImageTile key={m.code} metalCode={m.code} metalName={m.name} />
+        ))}
+      </div>
+
+
       <div className="space-y-4">
         {METALS.map((m) => (
           <MetalRow
@@ -627,6 +634,27 @@ const METAL_TINT: Record<MetalCode, string> = {
   XAG: "bg-slate-100 text-slate-700 ring-slate-200",
   XPT: "bg-zinc-100 text-zinc-700 ring-zinc-300",
 };
+
+const METAL_GRADIENT: Record<MetalCode, string> = {
+  XAU: "from-amber-200 via-yellow-400 to-amber-600",
+  XAG: "from-slate-100 via-slate-300 to-slate-500",
+  XPT: "from-zinc-100 via-zinc-300 to-zinc-500",
+};
+
+function MetalImageTile({ metalCode, metalName }: { metalCode: MetalCode; metalName: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div
+        className={cn(
+          "h-14 w-14 rounded-full bg-gradient-to-br shadow-inner ring-1 ring-black/10",
+          METAL_GRADIENT[metalCode],
+        )}
+        aria-hidden
+      />
+      <span className="text-xs font-semibold text-foreground">{metalName}</span>
+    </div>
+  );
+}
 
 function MetalRow({
   metalCode,
@@ -1410,21 +1438,23 @@ function Footer({
 }: {
   sources: { metals: string; rates: string; crypto: string; quotes: string; crude: string };
 }) {
+  const providers = Array.from(
+    new Set([sources.metals, sources.crypto, sources.rates, sources.quotes, sources.crude].filter(Boolean)),
+  );
   return (
     <footer className="mt-8 border-t border-border pt-5">
-      <div className="space-y-2 text-[11px] text-muted-foreground">
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">
-            © MarketAtlas · built by{" "}
-            <span className="font-semibold text-foreground">MAVIK group</span>
-          </span>
-          <span className="text-[10px]">
-            It is a Global financial hub for common people developed using the Lovable platform.
-          </span>
+      <div className="space-y-1.5 text-[11px] text-muted-foreground">
+        <div className="font-medium">
+          © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>
         </div>
-        <div className="font-mono text-[10px] text-muted-foreground">
-          APIs: {sources.metals} · {sources.crypto} · {sources.rates} · {sources.quotes} · {sources.crude}
+        <div className="text-[10px]">
+          It is a Global financial hub for common people developed using the Lovable platform.
         </div>
+        {providers.length > 0 ? (
+          <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
+            Data: {providers.join(" · ")}
+          </div>
+        ) : null}
       </div>
     </footer>
   );
