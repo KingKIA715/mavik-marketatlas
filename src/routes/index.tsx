@@ -39,7 +39,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { MobileNav } from "@/components/MobileNav";
 import {
   LineChart as LineChartIcon,
   TrendingDown,
@@ -47,7 +46,6 @@ import {
   Fuel,
   RefreshCw,
   Calculator,
-  Moon,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -123,13 +121,9 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header
-        country={country}
-        onCountryChange={setCountry}
-        fetchedAt={data.fetchedAt}
-      />
+      <Header fetchedAt={data.fetchedAt} locale={def.locale} />
 
-      <ToolsBar country={country} selectedAsset={selectedAsset} onAssetChange={setSelectedAsset} />
+      <ToolsBar />
 
       <CountryTiles country={country} onChange={setCountry} />
 
@@ -137,54 +131,9 @@ function Dashboard() {
 
       <main
         suppressHydrationWarning
-        className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-6 sm:px-6 sm:pb-16 sm:pt-8"
+        className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
-        {!selectedAsset ? (
-          <>
-            <PreciousMetals
-              country={country}
-              metals={data.metals}
-              metalsChange={data.metalsChange}
-              toLocal={toLocal}
-              fx={fx}
-              currency={def.currency}
-              includeGST={includeGST}
-              onGSTChange={setIncludeGST}
-              isLoading={isLoading}
-            />
-
-            <CryptoSection
-              crypto={data.crypto}
-              cryptoChange={data.cryptoChange}
-              toLocal={toLocal}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-
-            <StockMarket
-              country={country}
-              quotes={data.quotes}
-              basket={data.baskets[country] ?? []}
-              isLoading={isLoading}
-            />
-
-            <Gasoline
-              country={country}
-              crude={data.crude}
-              toLocal={toLocal}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-
-            <Currencies
-              rates={data.rates.rates}
-              ratesYesterday={data.ratesYesterday.rates}
-              base={def.currency}
-              currency={def.currency}
-              isLoading={isLoading}
-            />
-          </>
-        ) : selectedAsset === "metals" ? (
+        {(!selectedAsset || selectedAsset === "metals") && (
           <PreciousMetals
             country={country}
             metals={data.metals}
@@ -196,7 +145,8 @@ function Dashboard() {
             onGSTChange={setIncludeGST}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "crypto" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "crypto") && (
           <CryptoSection
             crypto={data.crypto}
             cryptoChange={data.cryptoChange}
@@ -204,14 +154,16 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "stocks" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "stocks") && (
           <StockMarket
             country={country}
             quotes={data.quotes}
             basket={data.baskets[country] ?? []}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "crude" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "crude") && (
           <Gasoline
             country={country}
             crude={data.crude}
@@ -219,7 +171,8 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : selectedAsset === "fx" ? (
+        )}
+        {(!selectedAsset || selectedAsset === "fx") && (
           <Currencies
             rates={data.rates.rates}
             ratesYesterday={data.ratesYesterday.rates}
@@ -227,7 +180,7 @@ function Dashboard() {
             currency={def.currency}
             isLoading={isLoading}
           />
-        ) : null}
+        )}
 
         <Footer sources={{
           metals: data.metalsSource,
@@ -237,8 +190,6 @@ function Dashboard() {
           crude: data.crudeSource,
         }} />
       </main>
-
-      <MobileNav />
     </div>
   );
 }
@@ -247,37 +198,21 @@ function Dashboard() {
  * TOOLS BAR - Dark Mode & Sync
  * ===================================================================== */
 
-function ToolsBar({
-  country,
-  selectedAsset,
-  onAssetChange,
-}: {
-  country: CountryCode;
-  selectedAsset: string | null;
-  onAssetChange: (asset: any) => void;
-}) {
+function ToolsBar() {
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2">
-          <ToolButton icon={<Moon className="h-4 w-4" />} title="Toggle dark mode" />
-          <ThemeToggle />
-        </div>
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
+        <Link
+          to="/resources"
+          title="Financial calculators & tools"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
+        >
+          <Calculator className="h-4 w-4" />
+        </Link>
+        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
         <SyncButton />
       </div>
     </div>
-  );
-}
-
-function ToolButton({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-    >
-      {icon}
-    </button>
   );
 }
 
@@ -295,7 +230,7 @@ function SyncButton() {
         await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
       }
     } catch {
-      // Handle error silently
+      // ignore
     } finally {
       setSyncing(false);
     }
@@ -331,7 +266,7 @@ function CountryTiles({
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar">
           {COUNTRY_ORDER.map((c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
@@ -341,17 +276,19 @@ function CountryTiles({
                 type="button"
                 onClick={() => onChange(c)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border px-4 py-3 text-center transition-colors",
+                  "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-4 py-2.5 text-center transition-colors min-w-[92px]",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-2xl" aria-hidden>{cd.flag}</span>
-                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
-                  {COUNTRY_SHORT[c]}
+                <span className="text-2xl leading-none" aria-hidden>{cd.flag}</span>
+                <span className={cn("text-[11px] font-semibold leading-tight", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                  {cd.name}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{cd.currency}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {cd.symbol} {cd.currency}
+                </span>
               </button>
             );
           })}
@@ -536,62 +473,24 @@ function ChangeBadge({
  * HEADER
  * ===================================================================== */
 
-function Header({
-  country,
-  onCountryChange,
-  fetchedAt,
-}: {
-  country: CountryCode;
-  onCountryChange: (c: CountryCode) => void;
-  fetchedAt: string;
-}) {
-  const def = COUNTRIES[country];
-
+function Header({ fetchedAt, locale }: { fetchedAt: string; locale: string }) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Market<span className="text-[color:var(--brand)]">Atlas</span>
-            </h1>
-            <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <Link
-                to="/resources"
-                title="Financial calculators & tools"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10"
-              >
-                <Calculator className="h-3.5 w-3.5" />
-                Tools
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:items-end">
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Link
-              to="/resources"
-              title="Financial calculators & tools"
-              className="hidden sm:inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
-            >
-              <Calculator className="h-3.5 w-3.5" />
-              Tools
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <LocalDate iso={fetchedAt} locale={def.locale} />
-            <span className="inline-flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
-                Live
-              </span>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Market<span className="text-[color:var(--brand)]">Atlas</span>
+        </h1>
+        <div className="flex items-center gap-3">
+          <LocalDate iso={fetchedAt} locale={locale} />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-          </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+              Live
+            </span>
+          </span>
         </div>
       </div>
     </header>
@@ -703,6 +602,13 @@ function PreciousMetals({
         ) : null}
       </SectionHeader>
 
+      <div className="mb-5 grid grid-cols-3 gap-3">
+        {METALS.map((m) => (
+          <MetalImageTile key={m.code} metalCode={m.code} metalName={m.name} />
+        ))}
+      </div>
+
+
       <div className="space-y-4">
         {METALS.map((m) => (
           <MetalRow
@@ -728,6 +634,27 @@ const METAL_TINT: Record<MetalCode, string> = {
   XAG: "bg-slate-100 text-slate-700 ring-slate-200",
   XPT: "bg-zinc-100 text-zinc-700 ring-zinc-300",
 };
+
+const METAL_GRADIENT: Record<MetalCode, string> = {
+  XAU: "from-amber-200 via-yellow-400 to-amber-600",
+  XAG: "from-slate-100 via-slate-300 to-slate-500",
+  XPT: "from-zinc-100 via-zinc-300 to-zinc-500",
+};
+
+function MetalImageTile({ metalCode, metalName }: { metalCode: MetalCode; metalName: string }) {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
+      <div
+        className={cn(
+          "h-14 w-14 rounded-full bg-gradient-to-br shadow-inner ring-1 ring-black/10",
+          METAL_GRADIENT[metalCode],
+        )}
+        aria-hidden
+      />
+      <span className="text-xs font-semibold text-foreground">{metalName}</span>
+    </div>
+  );
+}
 
 function MetalRow({
   metalCode,
@@ -1511,21 +1438,23 @@ function Footer({
 }: {
   sources: { metals: string; rates: string; crypto: string; quotes: string; crude: string };
 }) {
+  const providers = Array.from(
+    new Set([sources.metals, sources.crypto, sources.rates, sources.quotes, sources.crude].filter(Boolean)),
+  );
   return (
     <footer className="mt-8 border-t border-border pt-5">
-      <div className="space-y-2 text-[11px] text-muted-foreground">
-        <div className="flex flex-col gap-1">
-          <span className="font-medium">
-            © MarketAtlas · built by{" "}
-            <span className="font-semibold text-foreground">MAVIK group</span>
-          </span>
-          <span className="text-[10px]">
-            It is a Global financial hub for common people developed using the Lovable platform.
-          </span>
+      <div className="space-y-1.5 text-[11px] text-muted-foreground">
+        <div className="font-medium">
+          © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>
         </div>
-        <div className="font-mono text-[10px] text-muted-foreground">
-          APIs: {sources.metals} · {sources.crypto} · {sources.rates} · {sources.quotes} · {sources.crude}
+        <div className="text-[10px]">
+          It is a Global financial hub for common people developed using the Lovable platform.
         </div>
+        {providers.length > 0 ? (
+          <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
+            Data: {providers.join(" · ")}
+          </div>
+        ) : null}
       </div>
     </footer>
   );

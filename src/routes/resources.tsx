@@ -137,52 +137,36 @@ function Header() {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <div className="min-w-0">
-          <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Market<span className="text-[color:var(--brand)]">Atlas</span>
-          </Link>
-          <p className="mt-1 text-xs text-white/80 sm:text-sm">
-            Resources · Financial calculators & tools
-          </p>
-        </div>
-        <Link
-          to="/"
-          className="inline-flex h-9 items-center rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
-        >
-          Dashboard
+        <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Market<span className="text-[color:var(--brand)]">Atlas</span>
         </Link>
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
+          Resources
+        </span>
       </div>
     </header>
   );
 }
 
 /* =====================================================================
- * TOOLS BAR - Dark Mode & Sync
+ * TOOLS BAR - Home, Dark Mode & Sync
  * ===================================================================== */
 
 function ToolsBar() {
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2">
-          <ToolButton icon={<Moon className="h-4 w-4" />} title="Toggle dark mode" />
-          <ThemeToggle />
-        </div>
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
+        <Link
+          to="/"
+          title="Dashboard"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
+        >
+          <Home className="h-4 w-4" />
+        </Link>
+        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
         <SyncButton />
       </div>
     </div>
-  );
-}
-
-function ToolButton({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-    >
-      {icon}
-    </button>
   );
 }
 
@@ -200,7 +184,7 @@ function SyncButton() {
         await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
       }
     } catch {
-      // Handle error silently
+      // ignore
     } finally {
       setSyncing(false);
     }
