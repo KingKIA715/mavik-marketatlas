@@ -39,7 +39,6 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { MobileNav } from "@/components/MobileNav";
 import {
   LineChart as LineChartIcon,
   TrendingDown,
@@ -47,7 +46,6 @@ import {
   Fuel,
   RefreshCw,
   Calculator,
-  Moon,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -200,37 +198,21 @@ function Dashboard() {
  * TOOLS BAR - Dark Mode & Sync
  * ===================================================================== */
 
-function ToolsBar({
-  country,
-  selectedAsset,
-  onAssetChange,
-}: {
-  country: CountryCode;
-  selectedAsset: string | null;
-  onAssetChange: (asset: any) => void;
-}) {
+function ToolsBar() {
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2">
-          <ToolButton icon={<Moon className="h-4 w-4" />} title="Toggle dark mode" />
-          <ThemeToggle />
-        </div>
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
+        <Link
+          to="/resources"
+          title="Financial calculators & tools"
+          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
+        >
+          <Calculator className="h-4 w-4" />
+        </Link>
+        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
         <SyncButton />
       </div>
     </div>
-  );
-}
-
-function ToolButton({ icon, title }: { icon: React.ReactNode; title: string }) {
-  return (
-    <button
-      type="button"
-      title={title}
-      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-    >
-      {icon}
-    </button>
   );
 }
 
@@ -248,7 +230,7 @@ function SyncButton() {
         await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
       }
     } catch {
-      // Handle error silently
+      // ignore
     } finally {
       setSyncing(false);
     }
@@ -284,7 +266,7 @@ function CountryTiles({
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+        <div className="flex gap-3 overflow-x-auto no-scrollbar">
           {COUNTRY_ORDER.map((c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
@@ -294,17 +276,19 @@ function CountryTiles({
                 type="button"
                 onClick={() => onChange(c)}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border px-4 py-3 text-center transition-colors",
+                  "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-4 py-2.5 text-center transition-colors min-w-[92px]",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-2xl" aria-hidden>{cd.flag}</span>
-                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
-                  {COUNTRY_SHORT[c]}
+                <span className="text-2xl leading-none" aria-hidden>{cd.flag}</span>
+                <span className={cn("text-[11px] font-semibold leading-tight", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                  {cd.name}
                 </span>
-                <span className="text-[10px] text-muted-foreground">{cd.currency}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">
+                  {cd.symbol} {cd.currency}
+                </span>
               </button>
             );
           })}
