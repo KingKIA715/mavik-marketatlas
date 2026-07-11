@@ -47,6 +47,7 @@ import {
   Fuel,
   RefreshCw,
   Calculator,
+  Moon,
 } from "lucide-react";
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
@@ -97,6 +98,7 @@ function Dashboard() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data, isLoading } = useSuspenseQuery(snapshotQuery(fetcher));
   const [country, setCountry] = useState<CountryCode>("IN");
+  const [selectedAsset, setSelectedAsset] = useState<"metals" | "crypto" | "stocks" | "crude" | "fx" | null>(null);
   const [includeGST, setIncludeGST] = useState(false);
 
   useEffect(() => {
@@ -127,69 +129,284 @@ function Dashboard() {
         fetchedAt={data.fetchedAt}
       />
 
-      <CountryPills country={country} onChange={setCountry} />
+      <ToolsBar country={country} selectedAsset={selectedAsset} onAssetChange={setSelectedAsset} />
+
+      <CountryTiles country={country} onChange={setCountry} />
+
+      <AssetTiles selectedAsset={selectedAsset} onChange={setSelectedAsset} />
 
       <main
         suppressHydrationWarning
         className="mx-auto max-w-6xl space-y-12 px-4 pb-24 pt-6 sm:px-6 sm:pb-16 sm:pt-8"
       >
-        <PreciousMetals
-          country={country}
-          metals={data.metals}
-          metalsChange={data.metalsChange}
-          toLocal={toLocal}
-          fx={fx}
-          currency={def.currency}
-          includeGST={includeGST}
-          onGSTChange={setIncludeGST}
-          isLoading={isLoading}
-        />
+        {!selectedAsset ? (
+          <>
+            <PreciousMetals
+              country={country}
+              metals={data.metals}
+              metalsChange={data.metalsChange}
+              toLocal={toLocal}
+              fx={fx}
+              currency={def.currency}
+              includeGST={includeGST}
+              onGSTChange={setIncludeGST}
+              isLoading={isLoading}
+            />
 
-        <CryptoSection
-          crypto={data.crypto}
-          cryptoChange={data.cryptoChange}
-          toLocal={toLocal}
-          currency={def.currency}
-          isLoading={isLoading}
-        />
+            <CryptoSection
+              crypto={data.crypto}
+              cryptoChange={data.cryptoChange}
+              toLocal={toLocal}
+              currency={def.currency}
+              isLoading={isLoading}
+            />
 
-        <StockMarket
-          country={country}
-          quotes={data.quotes}
-          basket={data.baskets[country] ?? []}
-          isLoading={isLoading}
-        />
+            <StockMarket
+              country={country}
+              quotes={data.quotes}
+              basket={data.baskets[country] ?? []}
+              isLoading={isLoading}
+            />
 
-        <Gasoline
-          country={country}
-          crude={data.crude}
-          toLocal={toLocal}
-          currency={def.currency}
-          isLoading={isLoading}
-        />
+            <Gasoline
+              country={country}
+              crude={data.crude}
+              toLocal={toLocal}
+              currency={def.currency}
+              isLoading={isLoading}
+            />
 
-        <Currencies
-          rates={data.rates.rates}
-          ratesYesterday={data.ratesYesterday.rates}
-          base={def.currency}
-          currency={def.currency}
-          isLoading={isLoading}
-        />
+            <Currencies
+              rates={data.rates.rates}
+              ratesYesterday={data.ratesYesterday.rates}
+              base={def.currency}
+              currency={def.currency}
+              isLoading={isLoading}
+            />
+          </>
+        ) : selectedAsset === "metals" ? (
+          <PreciousMetals
+            country={country}
+            metals={data.metals}
+            metalsChange={data.metalsChange}
+            toLocal={toLocal}
+            fx={fx}
+            currency={def.currency}
+            includeGST={includeGST}
+            onGSTChange={setIncludeGST}
+            isLoading={isLoading}
+          />
+        ) : selectedAsset === "crypto" ? (
+          <CryptoSection
+            crypto={data.crypto}
+            cryptoChange={data.cryptoChange}
+            toLocal={toLocal}
+            currency={def.currency}
+            isLoading={isLoading}
+          />
+        ) : selectedAsset === "stocks" ? (
+          <StockMarket
+            country={country}
+            quotes={data.quotes}
+            basket={data.baskets[country] ?? []}
+            isLoading={isLoading}
+          />
+        ) : selectedAsset === "crude" ? (
+          <Gasoline
+            country={country}
+            crude={data.crude}
+            toLocal={toLocal}
+            currency={def.currency}
+            isLoading={isLoading}
+          />
+        ) : selectedAsset === "fx" ? (
+          <Currencies
+            rates={data.rates.rates}
+            ratesYesterday={data.ratesYesterday.rates}
+            base={def.currency}
+            currency={def.currency}
+            isLoading={isLoading}
+          />
+        ) : null}
 
-        <Footer
-          fetchedAt={data.fetchedAt}
-          country={country}
-          sources={{
-            metals: data.metalsSource,
-            rates: data.ratesSource,
-            crypto: data.cryptoSource,
-            quotes: data.quotesSource,
-            crude: data.crudeSource,
-          }}
-        />
+        <Footer sources={{
+          metals: data.metalsSource,
+          rates: data.ratesSource,
+          crypto: data.cryptoSource,
+          quotes: data.quotesSource,
+          crude: data.crudeSource,
+        }} />
       </main>
 
       <MobileNav />
+    </div>
+  );
+}
+
+/* =====================================================================
+ * TOOLS BAR - Dark Mode & Sync
+ * ===================================================================== */
+
+function ToolsBar({
+  country,
+  selectedAsset,
+  onAssetChange,
+}: {
+  country: CountryCode;
+  selectedAsset: string | null;
+  onAssetChange: (asset: any) => void;
+}) {
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-2">
+          <ToolButton icon={<Moon className="h-4 w-4" />} title="Toggle dark mode" />
+          <ThemeToggle />
+        </div>
+        <SyncButton />
+      </div>
+    </div>
+  );
+}
+
+function ToolButton({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
+    >
+      {icon}
+    </button>
+  );
+}
+
+function SyncButton() {
+  const queryClient = useQueryClient();
+  const sync = useServerFn(triggerSync);
+  const [syncing, setSyncing] = useState(false);
+
+  const onSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await sync();
+      if (res.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
+      }
+    } catch {
+      // Handle error silently
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onSync}
+      disabled={syncing}
+      title="Force refresh from upstream APIs"
+      className={cn(
+        "inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt",
+        syncing && "cursor-wait opacity-70",
+      )}
+    >
+      <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+    </button>
+  );
+}
+
+/* =====================================================================
+ * COUNTRY TILES
+ * ===================================================================== */
+
+function CountryTiles({
+  country,
+  onChange,
+}: {
+  country: CountryCode;
+  onChange: (c: CountryCode) => void;
+}) {
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+          {COUNTRY_ORDER.map((c) => {
+            const cd = COUNTRIES[c];
+            const active = c === country;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onChange(c)}
+                className={cn(
+                  "flex flex-col items-center gap-1 rounded-lg border px-4 py-3 text-center transition-colors",
+                  active
+                    ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
+                    : "border-border bg-background hover:bg-surface-alt",
+                )}
+              >
+                <span className="text-2xl" aria-hidden>{cd.flag}</span>
+                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                  {COUNTRY_SHORT[c]}
+                </span>
+                <span className="text-[10px] text-muted-foreground">{cd.currency}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =====================================================================
+ * ASSET TILES
+ * ===================================================================== */
+
+function AssetTiles({
+  selectedAsset,
+  onChange,
+}: {
+  selectedAsset: string | null;
+  onChange: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
+}) {
+  const assets = [
+    { id: "metals", label: "Metals", icon: "🪙" },
+    { id: "crypto", label: "Crypto", icon: "₿" },
+    { id: "stocks", label: "Stock Market", icon: "📈" },
+    { id: "crude", label: "Crude", icon: "🛢️" },
+    { id: "fx", label: "FX", icon: "💱" },
+  ];
+
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
+        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+          {assets.map((asset) => {
+            const active = selectedAsset === asset.id;
+            return (
+              <button
+                key={asset.id}
+                type="button"
+                onClick={() => onChange(asset.id as any)}
+                className={cn(
+                  "flex flex-col items-center gap-1.5 rounded-lg border px-4 py-3 text-center transition-colors",
+                  active
+                    ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
+                    : "border-border bg-background hover:bg-surface-alt",
+                )}
+              >
+                <span className="text-xl" aria-hidden>{asset.icon}</span>
+                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                  {asset.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -280,46 +497,6 @@ function SectionHeaderSkeleton() {
   );
 }
 
-/* =====================================================================
- * COUNTRY PILLS + CHANGE BADGE
- * ===================================================================== */
-
-function CountryPills({
-  country,
-  onChange,
-}: {
-  country: CountryCode;
-  onChange: (c: CountryCode) => void;
-}) {
-  return (
-    <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl gap-1.5 overflow-x-auto px-4 py-2.5 sm:px-6">
-        {COUNTRY_ORDER.map((c) => {
-          const cd = COUNTRIES[c];
-          const active = c === country;
-          return (
-            <button
-              key={c}
-              type="button"
-              onClick={() => onChange(c)}
-              className={cn(
-                "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
-                active
-                  ? "border-[color:var(--brand)] bg-[color:var(--brand)] text-white shadow-sm"
-                  : "border-border bg-background text-foreground hover:bg-surface-alt",
-              )}
-              aria-pressed={active}
-            >
-              <span aria-hidden>{cd.flag}</span>
-              <span>{COUNTRY_SHORT[c]}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function ChangeBadge({
   change,
   changePercent,
@@ -369,35 +546,6 @@ function Header({
   fetchedAt: string;
 }) {
   const def = COUNTRIES[country];
-  const queryClient = useQueryClient();
-  const sync = useServerFn(triggerSync);
-  const [syncing, setSyncing] = useState(false);
-  const [syncStatus, setSyncStatus] = useState<
-    | { kind: "idle" }
-    | { kind: "ok"; at: string; durationMs: number }
-    | { kind: "err"; message: string }
-  >({ kind: "idle" });
-
-  const onSync = async () => {
-    if (syncing) return;
-    setSyncing(true);
-    try {
-      const res = await sync();
-      if (res.ok) {
-        setSyncStatus({ kind: "ok", at: res.fetchedAt, durationMs: res.durationMs });
-        await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
-      } else {
-        setSyncStatus({ kind: "err", message: res.error });
-      }
-    } catch (err) {
-      setSyncStatus({
-        kind: "err",
-        message: err instanceof Error ? err.message : String(err),
-      });
-    } finally {
-      setSyncing(false);
-    }
-  };
 
   return (
     <header className="border-b border-border bg-slate-900 text-white">
@@ -406,7 +554,6 @@ function Header({
           <div className="flex items-start justify-between gap-2">
             <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               Market<span className="text-[color:var(--brand)]">Atlas</span>
-              <span className="hidden sm:inline"> — Global Financial Hub</span>
             </h1>
             <div className="flex shrink-0 items-center gap-2 sm:hidden">
               <Link
@@ -417,57 +564,20 @@ function Header({
                 <Calculator className="h-3.5 w-3.5" />
                 Tools
               </Link>
-              <ThemeToggle />
             </div>
           </div>
-          <p className="mt-1 max-w-md text-xs text-white/85 sm:text-sm">
-            Global financial hub for common people.
-          </p>
         </div>
 
         <div className="flex flex-col gap-2 sm:items-end">
           <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Select value={country} onValueChange={(v) => onCountryChange(v as CountryCode)}>
-              <SelectTrigger className="h-9 w-full border-white/15 bg-white/5 text-white hover:bg-white/10 sm:w-56">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {COUNTRY_ORDER.map((c) => {
-                  const cd = COUNTRIES[c];
-                  return (
-                    <SelectItem key={c} value={c}>
-                      <span className="mr-2">{cd.flag}</span>
-                      <span>{cd.name}</span>
-                      <span className="ml-2 font-mono text-[10px] text-muted-foreground">
-                        {cd.currency}
-                      </span>
-                    </SelectItem>
-                  );
-                })}
-              </SelectContent>
-            </Select>
-            <button
-              type="button"
-              onClick={onSync}
-              disabled={syncing}
-              title="Force refresh from upstream APIs"
-              className={cn(
-                "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white transition-colors hover:bg-white/10",
-                syncing && "cursor-wait opacity-70",
-              )}
-            >
-              <RefreshCw className={cn("h-3.5 w-3.5", syncing && "animate-spin")} />
-              {syncing ? "Syncing…" : "Sync now"}
-            </button>
             <Link
               to="/resources"
               title="Financial calculators & tools"
               className="hidden sm:inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
             >
               <Calculator className="h-3.5 w-3.5" />
-              Resources
+              Tools
             </Link>
-            <span className="hidden sm:inline-flex"><ThemeToggle /></span>
           </div>
 
           <div className="flex items-center gap-3">
@@ -482,22 +592,6 @@ function Header({
               </span>
             </span>
           </div>
-          {syncStatus.kind !== "idle" ? (
-            <div
-              suppressHydrationWarning
-              className="font-mono text-[10px]"
-              style={{
-                color:
-                  syncStatus.kind === "ok"
-                    ? "rgb(74 222 128)"
-                    : "rgb(248 113 113)",
-              }}
-            >
-              {syncStatus.kind === "ok"
-                ? `Synced ${new Date(syncStatus.at).toISOString().slice(11, 19)}Z · ${syncStatus.durationMs}ms`
-                : `Sync failed: ${syncStatus.message}`}
-            </div>
-          ) : null}
         </div>
       </div>
     </header>
@@ -1413,48 +1507,25 @@ function CurrencyTile({
  * ===================================================================== */
 
 function Footer({
-  fetchedAt,
-  country,
   sources,
 }: {
-  fetchedAt: string;
-  country: CountryCode;
   sources: { metals: string; rates: string; crypto: string; quotes: string; crude: string };
 }) {
-  const [timeText, setTimeText] = useState("");
-  const def = COUNTRIES[country];
-  useEffect(() => {
-    try {
-      setTimeText(
-        new Date(fetchedAt).toLocaleString(def.locale, {
-          hour: "2-digit",
-          minute: "2-digit",
-          day: "2-digit",
-          month: "short",
-        }),
-      );
-    } catch {
-      setTimeText(new Date(fetchedAt).toLocaleString());
-    }
-  }, [fetchedAt, def.locale]);
-
   return (
     <footer className="mt-8 border-t border-border pt-5">
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-muted-foreground">
-        <span className="font-medium">
-          © MarketAtlas · built by{" "}
-          <span className="font-semibold text-foreground">MAVIK group</span> using Lovable
-        </span>
-        <span suppressHydrationWarning className="font-mono">
-          Last updated {timeText || "—"} · cached hourly
-        </span>
-      </div>
-      <div className="mt-1.5 font-mono text-[10px] text-muted-foreground">
-        Sources: metals — {sources.metals} · crypto — {sources.crypto} · FX — {sources.rates} · stocks — {sources.quotes} · crude — {sources.crude}
-      </div>
-      <div suppressHydrationWarning className="mt-1 font-mono text-[10px] text-muted-foreground">
-        Data: {sources.metals} · Rates: {sources.rates} · Crypto: {sources.crypto} · Last sync:{" "}
-        {new Date(fetchedAt).toISOString().slice(11, 16)} UTC
+      <div className="space-y-2 text-[11px] text-muted-foreground">
+        <div className="flex flex-col gap-1">
+          <span className="font-medium">
+            © MarketAtlas · built by{" "}
+            <span className="font-semibold text-foreground">MAVIK group</span>
+          </span>
+          <span className="text-[10px]">
+            It is a Global financial hub for common people developed using the Lovable platform.
+          </span>
+        </div>
+        <div className="font-mono text-[10px] text-muted-foreground">
+          APIs: {sources.metals} · {sources.crypto} · {sources.rates} · {sources.quotes} · {sources.crude}
+        </div>
       </div>
     </footer>
   );

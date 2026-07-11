@@ -24,7 +24,12 @@ import {
   Flame,
   ArrowLeftRight,
   PiggyBank,
+  RefreshCw,
+  Moon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
+import { triggerSync } from "@/lib/market.functions";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
@@ -62,27 +67,9 @@ function ResourcesPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border bg-slate-900 text-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-          <div className="min-w-0">
-            <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Market<span className="text-[color:var(--brand)]">Atlas</span>
-            </Link>
-            <p className="mt-1 text-xs text-white/80 sm:text-sm">
-              Resources · Financial calculators & tools
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Link
-              to="/"
-              className="inline-flex h-9 items-center rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
-            >
-              Dashboard
-            </Link>
-            <ThemeToggle />
-          </div>
-        </div>
-      </header>
+      <Header />
+
+      <ToolsBar />
 
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="mb-6">
@@ -136,7 +123,102 @@ function ResourcesPage() {
           </TabsContent>
         </Tabs>
       </main>
+
+      <Footer />
     </div>
+  );
+}
+
+/* =====================================================================
+ * HEADER
+ * ===================================================================== */
+
+function Header() {
+  return (
+    <header className="border-b border-border bg-slate-900 text-white">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+        <div className="min-w-0">
+          <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Market<span className="text-[color:var(--brand)]">Atlas</span>
+          </Link>
+          <p className="mt-1 text-xs text-white/80 sm:text-sm">
+            Resources · Financial calculators & tools
+          </p>
+        </div>
+        <Link
+          to="/"
+          className="inline-flex h-9 items-center rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
+        >
+          Dashboard
+        </Link>
+      </div>
+    </header>
+  );
+}
+
+/* =====================================================================
+ * TOOLS BAR - Dark Mode & Sync
+ * ===================================================================== */
+
+function ToolsBar() {
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3 sm:px-6">
+        <div className="flex items-center gap-2">
+          <ToolButton icon={<Moon className="h-4 w-4" />} title="Toggle dark mode" />
+          <ThemeToggle />
+        </div>
+        <SyncButton />
+      </div>
+    </div>
+  );
+}
+
+function ToolButton({ icon, title }: { icon: React.ReactNode; title: string }) {
+  return (
+    <button
+      type="button"
+      title={title}
+      className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
+    >
+      {icon}
+    </button>
+  );
+}
+
+function SyncButton() {
+  const queryClient = useQueryClient();
+  const sync = useServerFn(triggerSync);
+  const [syncing, setSyncing] = useState(false);
+
+  const onSync = async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const res = await sync();
+      if (res.ok) {
+        await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
+      }
+    } catch {
+      // Handle error silently
+    } finally {
+      setSyncing(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onSync}
+      disabled={syncing}
+      title="Force refresh from upstream APIs"
+      className={cn(
+        "inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt",
+        syncing && "cursor-wait opacity-70",
+      )}
+    >
+      <RefreshCw className={cn("h-4 w-4", syncing && "animate-spin")} />
+    </button>
   );
 }
 
@@ -144,7 +226,7 @@ function ResourcesPage() {
 
 function Card({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadcn shadow-sm sm:p-6">
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm sm:p-6">
       {children}
     </div>
   );
@@ -527,5 +609,27 @@ function CurrencyPicker({
         </SelectContent>
       </Select>
     </div>
+  );
+}
+
+/* =====================================================================
+ * FOOTER
+ * ===================================================================== */
+
+function Footer() {
+  return (
+    <footer className="mt-8 border-t border-border px-4 py-5 sm:px-6">
+      <div className="mx-auto max-w-6xl space-y-2 text-[11px] text-muted-foreground">
+        <div className="flex flex-col gap-1">
+          <span className="font-medium">
+            © MarketAtlas · built by{" "}
+            <span className="font-semibold text-foreground">MAVIK group</span>
+          </span>
+          <span className="text-[10px]">
+            It is a Global financial hub for common people developed using the Lovable platform.
+          </span>
+        </div>
+      </div>
+    </footer>
   );
 }
