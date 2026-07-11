@@ -473,62 +473,24 @@ function ChangeBadge({
  * HEADER
  * ===================================================================== */
 
-function Header({
-  country,
-  onCountryChange,
-  fetchedAt,
-}: {
-  country: CountryCode;
-  onCountryChange: (c: CountryCode) => void;
-  fetchedAt: string;
-}) {
-  const def = COUNTRIES[country];
-
+function Header({ fetchedAt, locale }: { fetchedAt: string; locale: string }) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
-      <div className="mx-auto flex max-w-6xl flex-col gap-4 px-4 py-5 sm:flex-row sm:items-end sm:justify-between sm:px-6">
-        <div className="min-w-0">
-          <div className="flex items-start justify-between gap-2">
-            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-              Market<span className="text-[color:var(--brand)]">Atlas</span>
-            </h1>
-            <div className="flex shrink-0 items-center gap-2 sm:hidden">
-              <Link
-                to="/resources"
-                title="Financial calculators & tools"
-                className="inline-flex h-9 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-2.5 text-xs font-semibold text-white hover:bg-white/10"
-              >
-                <Calculator className="h-3.5 w-3.5" />
-                Tools
-              </Link>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col gap-2 sm:items-end">
-          <div className="flex w-full items-center gap-2 sm:w-auto">
-            <Link
-              to="/resources"
-              title="Financial calculators & tools"
-              className="hidden sm:inline-flex h-9 shrink-0 items-center gap-1.5 rounded-md border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white hover:bg-white/10"
-            >
-              <Calculator className="h-3.5 w-3.5" />
-              Tools
-            </Link>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <LocalDate iso={fetchedAt} locale={def.locale} />
-            <span className="inline-flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
-                Live
-              </span>
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+          Market<span className="text-[color:var(--brand)]">Atlas</span>
+        </h1>
+        <div className="flex items-center gap-3">
+          <LocalDate iso={fetchedAt} locale={locale} />
+          <span className="inline-flex items-center gap-1.5">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
+              <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-          </div>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+              Live
+            </span>
+          </span>
         </div>
       </div>
     </header>
