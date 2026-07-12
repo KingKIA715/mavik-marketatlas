@@ -38,7 +38,17 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
-import { Header, Footer, SyncButton } from "@/components/Layout";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import {
+  LineChart as LineChartIcon,
+  TrendingDown,
+  TrendingUp,
+  Fuel,
+  RefreshCw,
+  Calculator,
+} from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   MetalRowSkeleton,
   IndexCardSkeleton,
@@ -111,7 +121,7 @@ function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header fetchedAt={data.fetchedAt} locale={def.locale} showBackLink="resources" />
+      <Header fetchedAt={data.fetchedAt} locale={def.locale} />
 
       <CountryTiles country={country} onChange={setCountry} />
 
