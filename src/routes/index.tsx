@@ -263,8 +263,8 @@ function CountryTiles({
 }) {
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="flex gap-3 overflow-x-auto no-scrollbar">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
           {COUNTRY_ORDER.map((c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
@@ -274,17 +274,17 @@ function CountryTiles({
                 type="button"
                 onClick={() => onChange(c)}
                 className={cn(
-                  "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-4 py-2.5 text-center transition-colors min-w-[92px]",
+                  "flex shrink-0 flex-col items-center gap-0.5 rounded-lg border px-2 py-1.5 text-center transition-colors min-w-[68px] sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:gap-1",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-2xl leading-none" aria-hidden>{cd.flag}</span>
-                <span className={cn("text-[11px] font-semibold leading-tight", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                <span className="text-lg leading-none sm:text-2xl" aria-hidden>{cd.flag}</span>
+                <span className={cn("text-[10px] font-semibold leading-tight sm:text-[11px]", active ? "text-[color:var(--brand)]" : "text-foreground")}>
                   {cd.name}
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-[9px] text-muted-foreground sm:text-[10px]">
                   {cd.symbol} {cd.currency}
                 </span>
               </button>
