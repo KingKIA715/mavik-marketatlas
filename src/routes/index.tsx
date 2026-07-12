@@ -619,29 +619,7 @@ const METAL_TINT: Record<MetalCode, string> = {
   XAU: "bg-amber-50 text-amber-700 ring-amber-200",
   XAG: "bg-slate-100 text-slate-700 ring-slate-200",
   XPT: "bg-zinc-100 text-zinc-700 ring-zinc-300",
-};
-
-const METAL_GRADIENT: Record<MetalCode, string> = {
-  XAU: "from-amber-200 via-yellow-400 to-amber-600",
-  XAG: "from-slate-100 via-slate-300 to-slate-500",
-  XPT: "from-zinc-100 via-zinc-300 to-zinc-500",
-};
-
-function MetalImageTile({ metalCode, metalName }: { metalCode: MetalCode; metalName: string }) {
-  return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-3 shadow-sm">
-      <div
-        className={cn(
-          "h-14 w-14 rounded-full bg-gradient-to-br shadow-inner ring-1 ring-black/10",
-          METAL_GRADIENT[metalCode],
-        )}
-        aria-hidden
-      />
-      <span className="text-xs font-semibold text-foreground">{metalName}</span>
-    </div>
-  );
 }
-
 function MetalRow({
   metalCode,
   metalName,
