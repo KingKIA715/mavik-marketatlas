@@ -1,11 +1,11 @@
-import { useEffect } from "react";  
+  
 import { Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
-import { triggerSync } from "@/lib/market.market";
+import { triggerSync } from "@/lib/market.functions";
 import { RefreshCw, Home, Calculator } from "lucide-react";
 
 /* =====================================================================
