@@ -605,7 +605,7 @@ function Footer() {
             <span className="font-semibold text-foreground">MAVIK group</span>
           </span>
           <span className="text-[10px]">
-            It is a Global financial hub for common people developed using the Lovable platform.
+            Global financial hub for common people.
           </span>
         </div>
       </div>
