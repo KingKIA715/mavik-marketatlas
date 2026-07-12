@@ -44,7 +44,7 @@ import {
   TrendingUp,
   Fuel,
 } from "lucide-react";
-import { Header, Footer, ScrollIndicator } from "@/components/Layout";
+
 import {
   MetalRowSkeleton,
   IndexCardSkeleton,
@@ -53,6 +53,7 @@ import {
   CurrencyTileSkeleton,
   CryptoCardSkeleton,
 } from "@/components/SkeletonLoaders";
+import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
