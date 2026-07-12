@@ -123,8 +123,6 @@ function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <Header fetchedAt={data.fetchedAt} locale={def.locale} />
 
-      <ToolsBar />
-
       <CountryTiles country={country} onChange={setCountry} />
 
       <AssetTiles selectedAsset={selectedAsset} onChange={setSelectedAsset} />
