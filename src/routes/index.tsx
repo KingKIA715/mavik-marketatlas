@@ -73,13 +73,13 @@ export const Route = createFileRoute("/")({
       {
         name: "description",
         content:
-          "Live gold, silver, platinum, crypto prices, stock indices, fuel rates and currency exchange across India, US, Europe, UK and UAE. Free, refreshed hourly.",
+          "Live gold, silver, platinum, crypto prices, stock indices, fuel rates and currency exchange across India, US, Europe, UK, Japan,China and UAE. refreshed hourly.",
       },
-      { property: "og:title", content: "MarketAtlas — Global Financial Hub" },
+      { property: "og:title", content: "MarketAtlas — Global Financial Hub for Common People" },
       {
         property: "og:description",
         content:
-          "Metals, crypto, stocks, fuel and FX — in your country, your currency, your units.",
+          "Live gold, silver, platinum, crypto prices, stock indices, fuel rates and currency exchange across India, US, Europe, UK, Japan,China and UAE. refreshed hourly.",
       },
     ],
   }),
