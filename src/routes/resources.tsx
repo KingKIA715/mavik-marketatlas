@@ -162,26 +162,9 @@ function Header() {
 }
 
 /* =====================================================================
- * TOOLS BAR - Home, Dark Mode & Sync
+/* =====================================================================
+ * SYNC BUTTON
  * ===================================================================== */
-
-function ToolsBar() {
-  return (
-    <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
-        <Link
-          to="/"
-          title="Dashboard"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-        >
-          <Home className="h-4 w-4" />
-        </Link>
-        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
-        <SyncButton />
-      </div>
-    </div>
-  );
-}
 
 function SyncButton() {
   const queryClient = useQueryClient();
