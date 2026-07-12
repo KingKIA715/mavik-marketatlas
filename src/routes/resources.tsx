@@ -79,29 +79,34 @@ function ResourcesPage() {
           </p>
         </div>
 
-        <Tabs defaultValue="sip" className="w-full">
-          <TabsList className="mb-6 flex h-auto w-full flex-wrap gap-1 bg-surface-alt p-1">
-            <TabsTrigger value="sip" className="gap-1.5">
-              <TrendingUp className="h-3.5 w-3.5" /> SIP
-            </TabsTrigger>
-            <TabsTrigger value="lumpsum" className="gap-1.5">
-              <PiggyBank className="h-3.5 w-3.5" /> Lumpsum
-            </TabsTrigger>
-            <TabsTrigger value="emi" className="gap-1.5">
-              <Home className="h-3.5 w-3.5" /> EMI
-            </TabsTrigger>
-            <TabsTrigger value="metal" className="gap-1.5">
-              <Coins className="h-3.5 w-3.5" /> Gold/Silver
-            </TabsTrigger>
-            <TabsTrigger value="inflation" className="gap-1.5">
-              <Flame className="h-3.5 w-3.5" /> Inflation
-            </TabsTrigger>
-            <TabsTrigger value="fx" className="gap-1.5">
-              <ArrowLeftRight className="h-3.5 w-3.5" /> Currency
-            </TabsTrigger>
-          </TabsList>
+        const tools = [
+  { id: "sip", label: "SIP", icon: TrendingUp },
+  { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
+  { id: "emi", label: "EMI", icon: Home },
+  { id: "metal", label: "Gold/Silver", icon: Coins },
+  { id: "inflation", label: "Inflation", icon: Flame },
+  { id: "fx", label: "Currency", icon: ArrowLeftRight },
+];
 
-          <TabsContent value="sip">
+<Tabs defaultValue="sip" className="w-full">
+  <TabsList className="mb-6 flex h-auto w-full gap-2 overflow-x-auto no-scrollbar border-0 bg-transparent p-0 pb-3">
+    {tools.map((t) => {
+      const Icon = t.icon;
+      return (
+        <TabsTrigger
+          key={t.id}
+          value={t.id}
+          className="flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center transition-colors min-w-[72px] sm:min-w-[92px] sm:px-4 sm:py-2.5 border-border bg-background text-foreground hover:bg-surface-alt data-[state=active]:border-[color:var(--brand)] data-[state=active]:bg-[color:var(--brand)]/10 data-[state=active]:text-[color:var(--brand)] data-[state=active]:shadow-sm"
+        >
+          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+          <span className="text-[10px] font-semibold leading-tight sm:text-[11px]">
+            {t.label}
+          </span>
+        </TabsTrigger>
+      );
+    })}
+  </TabsList>
+        <TabsContent value="sip">
             <SIPCalculator />
           </TabsContent>
           <TabsContent value="lumpsum">
