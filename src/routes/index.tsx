@@ -1416,9 +1416,7 @@ function Footer({
 }: {
   sources: { metals: string; rates: string; crypto: string; quotes: string; crude: string };
 }) {
-  const providers = Array.from(
-    new Set([sources.metals, sources.crypto, sources.rates, sources.quotes, sources.crude].filter(Boolean)),
-  );
+  
   return (
     <footer className="mt-8 border-t border-border pt-5">
       <div className="space-y-1.5 text-[11px] text-muted-foreground">
@@ -1426,13 +1424,8 @@ function Footer({
           © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>
         </div>
         <div className="text-[10px]">
-          It is a Global financial hub for common 🧑‍🤝‍🧑 
+          Global financial hub for common people 🫂
         </div>
-        {providers.length > 0 ? (
-          <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
-            Data: {providers.join(" · ")}
-          </div>
-        ) : null}
       </div>
     </footer>
   );
