@@ -7,6 +7,15 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { triggerSync } from "@/lib/market.functions";
 import { RefreshCw, Home, Calculator } from "lucide-react";
+/* =====================================================================
+ * SCROLL INDICATOR
+ * ===================================================================== */
+
+export function ScrollIndicator() {
+  return (
+    <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-card/80 to-transparent sm:hidden" />
+  );
+}
 
 /* =====================================================================
  * SYNC BUTTON

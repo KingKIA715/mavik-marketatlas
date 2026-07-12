@@ -44,7 +44,7 @@ import {
   TrendingUp,
   Fuel,
 } from "lucide-react";
-import { Header, Footer } from "@/components/Layout";
+import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import {
   MetalRowSkeleton,
   IndexCardSkeleton,
@@ -202,7 +202,9 @@ function CountryTiles({
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div className="flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
+        <div className="relative flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
+          <ScrollIndicator />
+
           {COUNTRY_ORDER.map((c) => {
             const cd = COUNTRIES[c];
             const active = c === country;

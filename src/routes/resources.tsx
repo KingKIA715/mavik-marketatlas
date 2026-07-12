@@ -23,7 +23,8 @@ import {
   ArrowLeftRight,
   PiggyBank,
 } from "lucide-react";
-import { Header, Footer } from "@/components/Layout";
+import { Header, Footer, ScrollIndicator } from "@/components/Layout";
+
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
   queryOptions({
@@ -81,7 +82,8 @@ const tools = [
         </div>
 
 <Tabs defaultValue="sip" className="w-full">
-  <TabsList className="mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <TabsList className="relative mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <ScrollIndicator />
     {tools.map((t) => {
       const Icon = t.icon;
       return (
