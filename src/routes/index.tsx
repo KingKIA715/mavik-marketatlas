@@ -474,18 +474,31 @@ function ChangeBadge({
 function Header({ fetchedAt, locale }: { fetchedAt: string; locale: string }) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Market<span className="text-[color:var(--brand)]">Atlas</span>
-        </h1>
-        <div className="flex items-center gap-3">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Market<span className="text-[color:var(--brand)]">Atlas</span>
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to="/resources"
+              title="Financial calculators & tools"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10"
+            >
+              <Calculator className="h-4 w-4" />
+            </Link>
+            <ThemeToggle className="h-9 w-9 rounded-md border-white/20 bg-white/5 text-white hover:bg-white/10" />
+            <SyncButton />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <LocalDate iso={fetchedAt} locale={locale} />
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 ring-1 ring-emerald-400/40">
             <span className="relative flex h-2 w-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
               Live
             </span>
           </span>
