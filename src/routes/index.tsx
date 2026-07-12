@@ -620,6 +620,12 @@ const METAL_TINT: Record<MetalCode, string> = {
   XAG: "bg-slate-100 text-slate-700 ring-slate-200",
   XPT: "bg-zinc-100 text-zinc-700 ring-zinc-300",
 };
+const METAL_DOT_GRADIENT: Record<MetalCode, string> = {
+  XAU: "from-amber-300 via-yellow-400 to-amber-600",
+  XAG: "from-slate-200 via-slate-300 to-slate-400",
+  XPT: "from-zinc-200 via-zinc-300 to-zinc-400",
+};
+
 function MetalRow({
   metalCode,
   metalName,
@@ -660,21 +666,29 @@ function MetalRow({
   return (
     <>
       <article className="overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-shadow hover:shadow-md">
-        <header className="flex items-center justify-between gap-3 border-b border-border bg-surface-alt px-4 py-3">
-          <div className="flex items-center gap-2.5">
-            <span
-              className={cn(
-                "rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1",
-                METAL_TINT[metalCode],
-              )}
-            >
-              {metalName}
-            </span>
-            <span className="font-mono text-[10px] text-muted-foreground">
-              Spot {yahooSymbol}
-            </span>
-          </div>
-          <button
+       <header className="flex items-center justify-between gap-3 border-b border-border bg-surface-alt px-4 py-3">
+  <div className="flex items-center gap-2.5">
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ring-1",
+        METAL_TINT[metalCode],
+      )}
+    >
+      <span
+        className={cn(
+          "h-2.5 w-2.5 rounded-full bg-gradient-to-br shadow-sm ring-1 ring-black/10",
+          METAL_DOT_GRADIENT[metalCode],
+        )}
+        aria-hidden
+      />
+      {metalName}
+    </span>
+    <span className="font-mono text-[10px] text-muted-foreground">
+      Spot {yahooSymbol}
+    </span>
+  </div>
+
+     <button
             onClick={() => setOpen(true)}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-alt"
           >
