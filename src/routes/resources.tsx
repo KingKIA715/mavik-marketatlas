@@ -17,7 +17,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { GRAMS_PER_TROY_OUNCE } from "@/lib/market-config";
 import {
-  Calculator,
   TrendingUp,
   Home,
   Coins,
@@ -25,7 +24,6 @@ import {
   ArrowLeftRight,
   PiggyBank,
   RefreshCw,
-  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -144,6 +142,7 @@ function Header() {
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/"
+              aria-label="Back to dashboard"
               title="Dashboard"
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10"
             >
@@ -242,7 +241,10 @@ function Field({
           step={step}
           min={min}
           value={Number.isFinite(value) ? value : ""}
-          onChange={(e) => onChange(parseFloat(e.target.value))}
+          onChange={(e) => {
+            const val = e.target.value;
+            onChange(val === "" ? 0 : parseFloat(val));
+          }}
           className="font-mono tabular-nums"
         />
         {suffix ? (
@@ -394,6 +396,18 @@ function MetalCalculator({ data }: { data: MarketSnapshot }) {
 
   const spotUsdOz = data.metals[metal];
   const fx = data.rates.rates[currency] ?? 1;
+
+  if (!Number.isFinite(spotUsdOz) || spotUsdOz <= 0) {
+    return (
+      <Card>
+        <h2 className="text-lg font-semibold">Gold / Silver Investment Calculator</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Live spot prices are temporarily unavailable. Please try again shortly.
+        </p>
+      </Card>
+    );
+  }
+
   const pricePerOz = spotUsdOz * fx;
   const pricePerGram = pricePerOz / GRAMS_PER_TROY_OUNCE;
 

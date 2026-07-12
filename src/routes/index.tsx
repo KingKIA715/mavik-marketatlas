@@ -464,6 +464,7 @@ function Header({ fetchedAt, locale }: { fetchedAt: string; locale: string }) {
           <div className="flex shrink-0 items-center gap-2">
             <Link
               to="/resources"
+              aria-label="Financial calculators and tools"
               title="Financial calculators & tools"
               className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10"
             >
