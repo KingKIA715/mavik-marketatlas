@@ -619,7 +619,7 @@ const METAL_TINT: Record<MetalCode, string> = {
   XAU: "bg-amber-50 text-amber-700 ring-amber-200",
   XAG: "bg-slate-100 text-slate-700 ring-slate-200",
   XPT: "bg-zinc-100 text-zinc-700 ring-zinc-300",
-}
+};
 function MetalRow({
   metalCode,
   metalName,
