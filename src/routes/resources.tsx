@@ -69,8 +69,6 @@ function ResourcesPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <ToolsBar />
-
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
@@ -136,39 +134,36 @@ function ResourcesPage() {
 function Header() {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Market<span className="text-[color:var(--brand)]">Atlas</span>
-        </Link>
-        <span className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
-          Resources
-        </span>
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-start justify-between gap-3">
+          <Link to="/" className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Market<span className="text-[color:var(--brand)]">Atlas</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to="/"
+              title="Dashboard"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10"
+            >
+              <Home className="h-4 w-4" />
+            </Link>
+            <ThemeToggle className="h-9 w-9 rounded-md border-white/20 bg-white/5 text-white hover:bg-white/10" />
+            <SyncButton />
+          </div>
+        </div>
+        <div className="mt-2">
+          <span className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
+            Resources
+          </span>
+        </div>
       </div>
     </header>
   );
 }
 
 /* =====================================================================
- * TOOLS BAR - Home, Dark Mode & Sync
+ * SYNC BUTTON
  * ===================================================================== */
-
-function ToolsBar() {
-  return (
-    <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
-        <Link
-          to="/"
-          title="Dashboard"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-        >
-          <Home className="h-4 w-4" />
-        </Link>
-        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
-        <SyncButton />
-      </div>
-    </div>
-  );
-}
 
 function SyncButton() {
   const queryClient = useQueryClient();

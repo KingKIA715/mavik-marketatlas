@@ -123,8 +123,6 @@ function Dashboard() {
     <div className="min-h-screen bg-background text-foreground">
       <Header fetchedAt={data.fetchedAt} locale={def.locale} />
 
-      <ToolsBar />
-
       <CountryTiles country={country} onChange={setCountry} />
 
       <AssetTiles selectedAsset={selectedAsset} onChange={setSelectedAsset} />
@@ -195,26 +193,8 @@ function Dashboard() {
 }
 
 /* =====================================================================
- * TOOLS BAR - Dark Mode & Sync
+ * SYNC BUTTON
  * ===================================================================== */
-
-function ToolsBar() {
-  return (
-    <div className="border-b border-border bg-card/50">
-      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
-        <Link
-          to="/resources"
-          title="Financial calculators & tools"
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground transition-colors hover:bg-surface-alt"
-        >
-          <Calculator className="h-4 w-4" />
-        </Link>
-        <ThemeToggle className="h-9 w-9 rounded-md border-border bg-background text-foreground hover:bg-surface-alt" />
-        <SyncButton />
-      </div>
-    </div>
-  );
-}
 
 function SyncButton() {
   const queryClient = useQueryClient();
@@ -265,8 +245,8 @@ function CountryTiles({
 }) {
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="flex gap-3 overflow-x-auto no-scrollbar">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
           {COUNTRY_ORDER.map((c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
@@ -276,17 +256,17 @@ function CountryTiles({
                 type="button"
                 onClick={() => onChange(c)}
                 className={cn(
-                  "flex shrink-0 flex-col items-center gap-1 rounded-lg border px-4 py-2.5 text-center transition-colors min-w-[92px]",
+                  "flex shrink-0 flex-col items-center gap-0.5 rounded-lg border px-2 py-1.5 text-center transition-colors min-w-[68px] sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:gap-1",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-2xl leading-none" aria-hidden>{cd.flag}</span>
-                <span className={cn("text-[11px] font-semibold leading-tight", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                <span className="text-lg leading-none sm:text-2xl" aria-hidden>{cd.flag}</span>
+                <span className={cn("text-[10px] font-semibold leading-tight sm:text-[11px]", active ? "text-[color:var(--brand)]" : "text-foreground")}>
                   {cd.name}
                 </span>
-                <span className="font-mono text-[10px] text-muted-foreground">
+                <span className="font-mono text-[9px] text-muted-foreground sm:text-[10px]">
                   {cd.symbol} {cd.currency}
                 </span>
               </button>
@@ -319,8 +299,8 @@ function AssetTiles({
 
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3">
           {assets.map((asset) => {
             const active = selectedAsset === asset.id;
             return (
@@ -329,14 +309,14 @@ function AssetTiles({
                 type="button"
                 onClick={() => onChange(asset.id as any)}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border px-4 py-3 text-center transition-colors",
+                  "flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition-colors sm:px-3 sm:py-3 sm:gap-1.5",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-xl" aria-hidden>{asset.icon}</span>
-                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                <span className="text-base sm:text-xl" aria-hidden>{asset.icon}</span>
+                <span className={cn("text-[10px] font-semibold leading-tight sm:text-xs", active ? "text-[color:var(--brand)]" : "text-foreground")}>
                   {asset.label}
                 </span>
               </button>
@@ -476,18 +456,31 @@ function ChangeBadge({
 function Header({ fetchedAt, locale }: { fetchedAt: string; locale: string }) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-5 sm:px-6">
-        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-          Market<span className="text-[color:var(--brand)]">Atlas</span>
-        </h1>
-        <div className="flex items-center gap-3">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+        <div className="flex items-start justify-between gap-3">
+          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+            Market<span className="text-[color:var(--brand)]">Atlas</span>
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              to="/resources"
+              title="Financial calculators & tools"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/20 bg-white/5 text-white transition-colors hover:bg-white/10"
+            >
+              <Calculator className="h-4 w-4" />
+            </Link>
+            <ThemeToggle className="h-9 w-9 rounded-md border-white/20 bg-white/5 text-white hover:bg-white/10" />
+            <SyncButton />
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <LocalDate iso={fetchedAt} locale={locale} />
-          <span className="inline-flex items-center gap-1.5">
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 ring-1 ring-emerald-400/40">
             <span className="relative flex h-2 w-2">
               <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
               <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-white/80">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
               Live
             </span>
           </span>
