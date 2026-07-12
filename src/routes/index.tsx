@@ -317,8 +317,8 @@ function AssetTiles({
 
   return (
     <div className="border-b border-border bg-card/50">
-      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6">
-        <div className="grid auto-cols-max gap-3 overflow-x-auto">
+      <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
+        <div className="grid grid-cols-5 gap-2 sm:gap-3">
           {assets.map((asset) => {
             const active = selectedAsset === asset.id;
             return (
@@ -327,14 +327,14 @@ function AssetTiles({
                 type="button"
                 onClick={() => onChange(asset.id as any)}
                 className={cn(
-                  "flex flex-col items-center gap-1.5 rounded-lg border px-4 py-3 text-center transition-colors",
+                  "flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition-colors sm:px-3 sm:py-3 sm:gap-1.5",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
                 )}
               >
-                <span className="text-xl" aria-hidden>{asset.icon}</span>
-                <span className={cn("text-xs font-semibold", active ? "text-[color:var(--brand)]" : "text-foreground")}>
+                <span className="text-base sm:text-xl" aria-hidden>{asset.icon}</span>
+                <span className={cn("text-[10px] font-semibold leading-tight sm:text-xs", active ? "text-[color:var(--brand)]" : "text-foreground")}>
                   {asset.label}
                 </span>
               </button>
