@@ -64,7 +64,14 @@ export const Route = createFileRoute("/resources")({
 function ResourcesPage() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
-
+const tools = [
+  { id: "sip", label: "SIP", icon: TrendingUp },
+  { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
+  { id: "emi", label: "EMI", icon: Home },
+  { id: "metal", label: "Gold/Silver", icon: Coins },
+  { id: "inflation", label: "Inflation", icon: Flame },
+  { id: "fx", label: "Currency", icon: ArrowLeftRight },
+];
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header />
@@ -79,33 +86,23 @@ function ResourcesPage() {
           </p>
         </div>
 
-        const tools = [
-  { id: "sip", label: "SIP", icon: TrendingUp },
-  { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
-  { id: "emi", label: "EMI", icon: Home },
-  { id: "metal", label: "Gold/Silver", icon: Coins },
-  { id: "inflation", label: "Inflation", icon: Flame },
-  { id: "fx", label: "Currency", icon: ArrowLeftRight },
-];
-
 <Tabs defaultValue="sip" className="w-full">
-  <TabsList className="mb-6 flex h-auto w-full gap-2 overflow-x-auto no-scrollbar border-0 bg-transparent p-0 pb-3">
+  <TabsList className="mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     {tools.map((t) => {
       const Icon = t.icon;
       return (
         <TabsTrigger
           key={t.id}
           value={t.id}
-          className="flex shrink-0 flex-col items-center gap-1 rounded-lg border px-2 py-2 text-center transition-colors min-w-[72px] sm:min-w-[92px] sm:px-4 sm:py-2.5 border-border bg-background text-foreground hover:bg-surface-alt data-[state=active]:border-[color:var(--brand)] data-[state=active]:bg-[color:var(--brand)]/10 data-[state=active]:text-[color:var(--brand)] data-[state=active]:shadow-sm"
+          className="flex h-auto shrink-0 flex-col items-center gap-1 rounded-lg border border-border bg-background px-2 py-2 text-center text-[10px] font-semibold text-foreground transition-colors hover:bg-surface-alt min-w-[72px] whitespace-normal data-[state=active]:border-[color:var(--brand)] data-[state=active]:bg-[color:var(--brand)]/10 data-[state=active]:text-[color:var(--brand)] data-[state=active]:shadow-sm sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:text-[11px]"
         >
           <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span className="text-[10px] font-semibold leading-tight sm:text-[11px]">
-            {t.label}
-          </span>
+          <span>{t.label}</span>
         </TabsTrigger>
       );
     })}
   </TabsList>
+               
         <TabsContent value="sip">
             <SIPCalculator />
           </TabsContent>
