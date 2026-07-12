@@ -69,8 +69,6 @@ function ResourcesPage() {
     <div className="min-h-screen bg-background text-foreground">
       <Header />
 
-      <ToolsBar />
-
       <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
