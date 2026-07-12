@@ -17,6 +17,7 @@ import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { GRAMS_PER_TROY_OUNCE } from "@/lib/market-config";
 import {
   TrendingUp,
+  Home,
   Coins,
   Flame,
   ArrowLeftRight,
