@@ -594,14 +594,7 @@ function PreciousMetals({
           </div>
         ) : null}
       </SectionHeader>
-
-      <div className="mb-5 grid grid-cols-3 gap-3">
-        {METALS.map((m) => (
-          <MetalImageTile key={m.code} metalCode={m.code} metalName={m.name} />
-        ))}
-      </div>
-
-
+      
       <div className="space-y-4">
         {METALS.map((m) => (
           <MetalRow
@@ -1441,7 +1434,7 @@ function Footer({
           © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>
         </div>
         <div className="text-[10px]">
-          It is a Global financial hub for common people developed using the Lovable platform.
+          It is a Global financial hub for common 🧑‍🤝‍🧑 
         </div>
         {providers.length > 0 ? (
           <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
