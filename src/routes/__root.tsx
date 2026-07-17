@@ -9,6 +9,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import * as React from "react";
 import appCss from "@/styles.css?url";
 import "@/styles.css";
+import { PwaManager } from "@/components/PwaManager";
+import { Toaster } from "@/components/ui/sonner";
 
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   head: () => ({
@@ -16,6 +18,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { name: "theme-color", content: "#0f172a" },
+      { name: "mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-capable", content: "yes" },
+      { name: "apple-mobile-web-app-status-bar-style", content: "black-translucent" },
+      { name: "apple-mobile-web-app-title", content: "MarketAtlas" },
+      { name: "application-name", content: "MarketAtlas" },
       { title: "MarketAtlas — Global Financial Hub for Common People" },
       { property: "og:title", content: "MarketAtlas — Global Financial Hub for Common People" },
       { name: "twitter:title", content: "MarketAtlas — Global Financial Hub for Common People" },
@@ -30,6 +37,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico" },
+      { rel: "manifest", href: "/manifest.webmanifest" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   component: RootComponent,
@@ -66,6 +75,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased">
         {children}
+        <PwaManager />
+        <Toaster position="bottom-center" />
         <Scripts />
       </body>
     </html>
