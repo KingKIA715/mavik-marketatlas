@@ -367,3 +367,83 @@ export async function fetchHistory(
   }
   return { data, source: "Yahoo Finance" };
 }
+
+/* ----------------------------------------------------- MUTUAL FUNDS (India) --- */
+// AMFI mutual fund NAV data via mfapi.in — free, no API key required.
+
+export interface MFSearchResult {
+  schemeCode: number;
+  schemeName: string;
+}
+
+export async function searchMF(query: string): Promise<{ data: MFSearchResult[]; source: string }> {
+  try {
+    const json = await withRetry("mf-search", async () => {
+      const r = await fetch(`https://api.mfapi.in/mf/search?q=${encodeURIComponent(query)}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!r.ok) throw new Error(`mfapi search ${r.status}`);
+      return (await r.json()) as unknown;
+    });
+    const arr = Array.isArray(json) ? json : [];
+    const data: MFSearchResult[] = arr
+      .slice(0, 15)
+      .map((x: { schemeCode?: number | string; schemeName?: string }) => ({
+        schemeCode: Number(x.schemeCode),
+        schemeName: String(x.schemeName ?? ""),
+      }))
+      .filter((x) => Number.isFinite(x.schemeCode) && x.schemeName);
+    return { data, source: "AMFI via mfapi.in" };
+  } catch (e) {
+    console.warn("[mf-search] failed:", e);
+    return { data: [], source: "unavailable" };
+  }
+}
+
+export interface MFNav {
+  schemeCode: number;
+  schemeName: string;
+  fundHouse?: string;
+  nav: number;
+  navDate: string;
+  change: number;
+  changePercent: number;
+}
+
+export async function fetchMFNav(schemeCode: number): Promise<{ data: MFNav | null; source: string }> {
+  try {
+    const json = await withRetry("mf-nav", async () => {
+      const r = await fetch(`https://api.mfapi.in/mf/${schemeCode}`, {
+        headers: { accept: "application/json" },
+      });
+      if (!r.ok) throw new Error(`mfapi nav ${r.status}`);
+      return (await r.json()) as {
+        meta?: { scheme_name?: string; fund_house?: string };
+        data?: Array<{ date: string; nav: string }>;
+      };
+    });
+    const rows = Array.isArray(json?.data) ? json.data : [];
+    if (rows.length === 0) return { data: null, source: "unavailable" };
+    const latest = rows[0];
+    const prev = rows[1];
+    const nav = parseFloat(latest.nav);
+    const prevNav = prev ? parseFloat(prev.nav) : NaN;
+    const change = Number.isFinite(prevNav) ? nav - prevNav : 0;
+    const changePercent = Number.isFinite(prevNav) && prevNav !== 0 ? (change / prevNav) * 100 : 0;
+    return {
+      data: {
+        schemeCode,
+        schemeName: json?.meta?.scheme_name ?? String(schemeCode),
+        fundHouse: json?.meta?.fund_house,
+        nav,
+        navDate: latest.date,
+        change,
+        changePercent,
+      },
+      source: "AMFI via mfapi.in",
+    };
+  } catch (e) {
+    console.warn("[mf-nav] failed:", e);
+    return { data: null, source: "unavailable" };
+  }
+}

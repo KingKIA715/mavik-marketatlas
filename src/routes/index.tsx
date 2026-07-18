@@ -102,8 +102,24 @@ function Dashboard() {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const p = new URLSearchParams(window.location.search).get("country")?.toUpperCase();
-    if (p && p in COUNTRIES && p !== country) setCountry(p as CountryCode);
+    const params = new URLSearchParams(window.location.search);
+    const p = params.get("country")?.toUpperCase();
+    if (p && p in COUNTRIES) {
+      if (p !== country) setCountry(p as CountryCode);
+      return;
+    }
+    // No explicit ?country= — guess a sensible default from the visitor's locale/timezone
+    // rather than always opening on India.
+    try {
+      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+      const lang = (navigator.language || "").toLowerCase();
+      let guess: CountryCode | null = null;
+      if (tz.startsWith("America/") || lang.endsWith("-us")) guess = "US";
+      else if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta" || lang.endsWith("-in")) guess = "IN";
+      if (guess && guess !== country) setCountry(guess);
+    } catch {
+      // Intl/navigator unavailable — keep the default.
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
@@ -123,6 +139,8 @@ function Dashboard() {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header fetchedAt={data.fetchedAt} locale={def.locale} showBackLink="resources" />
+
+      <TodaySnapshot data={data} country={country} onJump={setSelectedAsset} />
 
       <CountryTiles country={country} onChange={setCountry} />
 
@@ -199,6 +217,134 @@ function Dashboard() {
 /* =====================================================================
  * COUNTRY TILES
  * ===================================================================== */
+
+/* ------------------------------ Today's Snapshot --------------------------- */
+
+interface Mover {
+  key: string;
+  label: string;
+  changePercent: number;
+  assetFilter: "metals" | "crypto" | "stocks" | "crude" | "fx";
+  emoji: string;
+}
+
+function TodaySnapshot({
+  data,
+  country,
+  onJump,
+}: {
+  data: MarketSnapshot;
+  country: CountryCode;
+  onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
+}) {
+  const def = COUNTRIES[country];
+
+  const movers = useMemo<Mover[]>(() => {
+    const list: Mover[] = [];
+
+    METALS.forEach((m) => {
+      const c = data.metalsChange[m.code];
+      if (c && Number.isFinite(c.changePercent)) {
+        list.push({ key: m.code, label: m.name, changePercent: c.changePercent, assetFilter: "metals", emoji: "🪙" });
+      }
+    });
+
+    CRYPTOS.forEach((c) => {
+      const chg = data.cryptoChange[c.code];
+      if (chg && Number.isFinite(chg.changePercent)) {
+        list.push({ key: c.code, label: c.name, changePercent: chg.changePercent, assetFilter: "crypto", emoji: c.icon });
+      }
+    });
+
+    def.stockIndices.forEach((ticker) => {
+      const q = data.quotes.find((x) => x.ticker === ticker);
+      const name = STOCKS[ticker]?.name ?? ticker;
+      if (q && Number.isFinite(q.changePercent)) {
+        list.push({ key: ticker, label: name, changePercent: q.changePercent, assetFilter: "stocks", emoji: "📈" });
+      }
+    });
+
+    if (Number.isFinite(data.crude.changePercent)) {
+      list.push({ key: "crude", label: "Crude Oil", changePercent: data.crude.changePercent, assetFilter: "crude", emoji: "🛢️" });
+    }
+
+    const baseRate = data.rates.rates[def.currency];
+    const baseRateY = data.ratesYesterday.rates[def.currency];
+    const featuredFx = ["USD", "EUR", "GBP", "JPY", "AED", "INR", "CNY"].filter((c) => c !== def.currency);
+    featuredFx.forEach((ccy) => {
+      const rate = data.rates.rates[ccy];
+      const rateY = data.ratesYesterday.rates[ccy];
+      if (!rate || !rateY || !baseRate || !baseRateY) return;
+      const perBase = rate / baseRate;
+      const perBaseY = rateY / baseRateY;
+      if (!Number.isFinite(perBase) || !Number.isFinite(perBaseY) || perBaseY === 0) return;
+      const changePercent = ((perBase - perBaseY) / perBaseY) * 100;
+      list.push({
+        key: ccy,
+        label: `${def.currency}/${ccy}`,
+        changePercent,
+        assetFilter: "fx",
+        emoji: CURRENCY_FLAGS[ccy] || "💱",
+      });
+    });
+
+    return list
+      .filter((m) => Number.isFinite(m.changePercent) && m.changePercent !== 0)
+      .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
+      .slice(0, 6);
+  }, [data, def]);
+
+  if (movers.length === 0) return null;
+
+  const gainer = movers.filter((m) => m.changePercent > 0).sort((a, b) => b.changePercent - a.changePercent)[0];
+  const loser = movers.filter((m) => m.changePercent < 0).sort((a, b) => a.changePercent - b.changePercent)[0];
+
+  let headline = "";
+  if (gainer && loser) {
+    headline = `${gainer.label} leads today, up ${fmtNumber(gainer.changePercent, 1)}% — ${loser.label} is the biggest faller, down ${fmtNumber(Math.abs(loser.changePercent), 1)}%.`;
+  } else if (gainer) {
+    headline = `${gainer.label} leads today, up ${fmtNumber(gainer.changePercent, 1)}%.`;
+  } else if (loser) {
+    headline = `${loser.label} is today's biggest faller, down ${fmtNumber(Math.abs(loser.changePercent), 1)}%.`;
+  }
+
+  return (
+    <div className="border-b border-border bg-gradient-to-b from-surface-alt to-background">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
+        {headline ? (
+          <p className="mb-3 text-sm font-medium text-foreground sm:text-base">
+            <span className="mr-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+              Today
+            </span>
+            {headline}
+          </p>
+        ) : null}
+        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {movers.map((m) => {
+            const up = m.changePercent >= 0;
+            return (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => onJump(m.assetFilter)}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-surface-alt"
+              >
+                <span aria-hidden>{m.emoji}</span>
+                <span className="text-foreground">{m.label}</span>
+                <span
+                  className="font-mono font-semibold"
+                  style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+                >
+                  {up ? "▲" : "▼"} {fmtNumber(Math.abs(m.changePercent), 1)}%
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CountryTiles({
   country,

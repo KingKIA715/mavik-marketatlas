@@ -9,6 +9,8 @@ import {
   fetchCrude,
   fetchCrypto,
   fetchHistory,
+  searchMF,
+  fetchMFNav,
   type Crude,
   type CryptoPrices,
   type CryptoChange,
@@ -177,4 +179,28 @@ export const getHistory = createServerFn({ method: "GET" })
     } catch {
       return base;
     }
+  });
+
+const MF_QUERY_RE = /^[a-zA-Z0-9 .&'-]{2,60}$/;
+
+export const searchMutualFunds = createServerFn({ method: "GET" })
+  .inputValidator((data: { q: string }) => {
+    const q = (data.q ?? "").trim();
+    if (!MF_QUERY_RE.test(q)) throw new Error("Invalid query");
+    return { q };
+  })
+  .handler(async ({ data }) => {
+    setResponseHeader("cache-control", "public, max-age=3600, stale-while-revalidate=86400");
+    return cached(`mf-search:${data.q.toLowerCase()}`, ONE_HOUR, () => searchMF(data.q));
+  });
+
+export const getMutualFundNav = createServerFn({ method: "GET" })
+  .inputValidator((data: { schemeCode: number }) => {
+    const schemeCode = Number(data.schemeCode);
+    if (!Number.isInteger(schemeCode) || schemeCode <= 0) throw new Error("Invalid scheme code");
+    return { schemeCode };
+  })
+  .handler(async ({ data }) => {
+    setResponseHeader("cache-control", "public, max-age=3600, stale-while-revalidate=86400");
+    return cached(`mf-nav:${data.schemeCode}`, ONE_HOUR, () => fetchMFNav(data.schemeCode));
   });

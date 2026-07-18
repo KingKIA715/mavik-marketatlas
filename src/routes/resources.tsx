@@ -1,8 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { useMemo, useState } from "react";
-import { getMarketSnapshot, type MarketSnapshot } from "@/lib/market.functions";
+import { useEffect, useMemo, useState } from "react";
+import { getMarketSnapshot, searchMutualFunds, getMutualFundNav, type MarketSnapshot } from "@/lib/market.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,9 @@ import {
   ShieldCheck,
   Percent,
   Fuel,
+  Search,
+  Briefcase,
+  Building2,
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
@@ -78,7 +81,10 @@ const tools = [
   { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
   { id: "fdrd", label: "FD/RD", icon: Banknote },
   { id: "ppf", label: "PPF", icon: ShieldCheck },
+  { id: "mf", label: "Mutual Funds", icon: Search },
   { id: "emi", label: "EMI", icon: Home },
+  { id: "mortgage", label: "Mortgage (US)", icon: Building2 },
+  { id: "401k", label: "401(k)", icon: Briefcase },
   { id: "metal", label: "Gold/Silver", icon: Coins },
   { id: "inflation", label: "Inflation", icon: Flame },
   { id: "gst", label: "GST/VAT", icon: Percent },
@@ -132,8 +138,17 @@ const tools = [
           <TabsContent value="ppf">
             <PPFCalculator />
           </TabsContent>
+          <TabsContent value="mf">
+            <MutualFundLookup />
+          </TabsContent>
           <TabsContent value="emi">
             <EMICalculator />
+          </TabsContent>
+          <TabsContent value="mortgage">
+            <MortgageCalculator />
+          </TabsContent>
+          <TabsContent value="401k">
+            <Retirement401kCalculator />
           </TabsContent>
           <TabsContent value="metal">
             <MetalCalculator data={data} />
@@ -904,6 +919,282 @@ function FuelCostCalculator({ data }: { data: MarketSnapshot }) {
           <Stat label="Monthly cost" value={fmtCurrency(monthlyCost, def.currency, { maximumFractionDigits: 0 })} />
           <Stat label="Yearly cost" value={fmtCurrency(yearlyCost, def.currency, { maximumFractionDigits: 0 })} />
         </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* ---------------------------- Mutual Fund Lookup (India) -------------------- */
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(id);
+  }, [value, delayMs]);
+  return debounced;
+}
+
+function MutualFundLookup() {
+  const searchFn = useServerFn(searchMutualFunds);
+  const navFn = useServerFn(getMutualFundNav);
+
+  const [query, setQuery] = useState("");
+  const debouncedQuery = useDebounced(query, 350);
+  const [results, setResults] = useState<{ schemeCode: number; schemeName: string }[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
+
+  const [selected, setSelected] = useState<{ schemeCode: number; schemeName: string } | null>(null);
+  const [nav, setNav] = useState<
+    | { schemeCode: number; schemeName: string; fundHouse?: string; nav: number; navDate: string; change: number; changePercent: number }
+    | null
+  >(null);
+  const [navLoading, setNavLoading] = useState(false);
+  const [navError, setNavError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const q = debouncedQuery.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setSearchError(null);
+      return;
+    }
+    let cancelled = false;
+    setSearching(true);
+    setSearchError(null);
+    searchFn({ data: { q } })
+      .then((res) => {
+        if (cancelled) return;
+        setResults(res.data);
+        if (res.data.length === 0) setSearchError("No matching schemes found.");
+      })
+      .catch((e) => {
+        if (!cancelled) setSearchError(e instanceof Error ? e.message : "Search failed");
+      })
+      .finally(() => {
+        if (!cancelled) setSearching(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedQuery]);
+
+  const selectScheme = (s: { schemeCode: number; schemeName: string }) => {
+    setSelected(s);
+    setResults([]);
+    setQuery(s.schemeName);
+    setNav(null);
+    setNavError(null);
+    setNavLoading(true);
+    navFn({ data: { schemeCode: s.schemeCode } })
+      .then((res) => {
+        if (!res.data) {
+          setNavError("NAV data unavailable for this scheme.");
+          return;
+        }
+        setNav(res.data);
+      })
+      .catch((e) => setNavError(e instanceof Error ? e.message : "Failed to load NAV"))
+      .finally(() => setNavLoading(false));
+  };
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">Mutual Fund NAV Lookup</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Search any AMFI-registered Indian mutual fund scheme for its latest NAV and day change.
+        Data via AMFI (mfapi.in), updated daily.
+      </p>
+      <div className="mt-4 space-y-4">
+        <div className="space-y-1.5">
+          <Label className="text-xs font-medium text-muted-foreground">Search by scheme name</Label>
+          <Input
+            value={query}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setSelected(null);
+              setNav(null);
+              setNavError(null);
+            }}
+            placeholder="e.g. HDFC Top 100, Parag Parikh Flexi Cap..."
+          />
+        </div>
+
+        {searching ? <p className="text-xs text-muted-foreground">Searching…</p> : null}
+        {searchError && !selected ? <p className="text-xs text-muted-foreground">{searchError}</p> : null}
+
+        {results.length > 0 && !selected ? (
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-border">
+            {results.map((r) => (
+              <button
+                key={r.schemeCode}
+                type="button"
+                onClick={() => selectScheme(r)}
+                className="block w-full border-b border-border px-3 py-2 text-left text-sm last:border-b-0 hover:bg-surface-alt"
+              >
+                {r.schemeName}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {navLoading ? <p className="text-sm text-muted-foreground">Loading NAV…</p> : null}
+        {navError ? <p className="text-sm text-muted-foreground">{navError}</p> : null}
+
+        {nav ? (
+          <div className="rounded-xl border border-border bg-surface-alt p-4">
+            <p className="text-sm font-semibold text-foreground">{nav.schemeName}</p>
+            {nav.fundHouse ? <p className="text-xs text-muted-foreground">{nav.fundHouse}</p> : null}
+            <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
+              <Stat label="Latest NAV" value={fmtCurrency(nav.nav, "INR", { maximumFractionDigits: 2 })} />
+              <Stat
+                label="Day change"
+                value={`${nav.changePercent >= 0 ? "+" : ""}${fmtNumber(nav.changePercent, 2)}%`}
+              />
+              <Stat label="As of" value={nav.navDate} />
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </Card>
+  );
+}
+
+/* -------------------------------- Mortgage (US) ------------------------------ */
+
+function MortgageCalculator() {
+  const [homePrice, setHomePrice] = useState(400000);
+  const [downPaymentPct, setDownPaymentPct] = useState(20);
+  const [rate, setRate] = useState(6.5);
+  const [years, setYears] = useState(30);
+  const [propertyTaxPct, setPropertyTaxPct] = useState(1.1);
+  const [annualInsurance, setAnnualInsurance] = useState(1500);
+  const [pmiPct, setPmiPct] = useState(0.5);
+
+  const result = useMemo(() => {
+    const downPayment = homePrice * (downPaymentPct / 100);
+    const loanAmount = Math.max(0, homePrice - downPayment);
+    const monthlyRate = rate / 100 / 12;
+    const n = years * 12;
+    const principalAndInterest =
+      monthlyRate > 0
+        ? (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1)
+        : loanAmount / n;
+    const monthlyTax = (homePrice * (propertyTaxPct / 100)) / 12;
+    const monthlyInsurance = annualInsurance / 12;
+    const monthlyPMI = downPaymentPct < 20 ? (loanAmount * (pmiPct / 100)) / 12 : 0;
+    const totalMonthly = principalAndInterest + monthlyTax + monthlyInsurance + monthlyPMI;
+    const totalInterest = principalAndInterest * n - loanAmount;
+    return { loanAmount, principalAndInterest, monthlyTax, monthlyInsurance, monthlyPMI, totalMonthly, totalInterest };
+  }, [homePrice, downPaymentPct, rate, years, propertyTaxPct, annualInsurance, pmiPct]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">Mortgage Calculator (US)</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Estimated monthly payment including principal, interest, property tax, homeowner's insurance,
+        and PMI if your down payment is under 20%.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <Field label="Home price" value={homePrice} onChange={setHomePrice} min={0} suffix="$" />
+          <Field label="Down payment" value={downPaymentPct} onChange={setDownPaymentPct} min={0} max={100} suffix="%" />
+          <Field label="Interest rate" value={rate} onChange={setRate} suffix="% APR" />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Loan term</Label>
+            <Select value={String(years)} onValueChange={(v) => setYears(Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="15">15 years</SelectItem>
+                <SelectItem value="20">20 years</SelectItem>
+                <SelectItem value="30">30 years</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Field label="Property tax" value={propertyTaxPct} onChange={setPropertyTaxPct} suffix="%/yr" />
+          <Field label="Home insurance" value={annualInsurance} onChange={setAnnualInsurance} min={0} suffix="$/yr" />
+          {downPaymentPct < 20 ? (
+            <Field label="PMI rate" value={pmiPct} onChange={setPmiPct} min={0} suffix="%/yr" />
+          ) : null}
+        </div>
+        <div className="mt-4 space-y-3">
+          <Stat label="Loan amount" value={fmtCurrency(result.loanAmount, "USD", { maximumFractionDigits: 0 })} />
+          <Stat label="Principal & interest" value={`${fmtCurrency(result.principalAndInterest, "USD", { maximumFractionDigits: 0 })}/mo`} />
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <Stat label="Tax/mo" value={fmtCurrency(result.monthlyTax, "USD", { maximumFractionDigits: 0 })} />
+            <Stat label="Insurance/mo" value={fmtCurrency(result.monthlyInsurance, "USD", { maximumFractionDigits: 0 })} />
+            <Stat label="PMI/mo" value={fmtCurrency(result.monthlyPMI, "USD", { maximumFractionDigits: 0 })} />
+          </div>
+          <div className="rounded-xl border border-border bg-surface-alt p-4">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm font-semibold text-foreground">Total monthly payment</span>
+              <span className="font-mono text-lg font-bold text-foreground">
+                {fmtCurrency(result.totalMonthly, "USD", { maximumFractionDigits: 0 })}
+              </span>
+            </div>
+          </div>
+          <Stat label="Total interest over loan term" value={fmtCurrency(result.totalInterest, "USD", { maximumFractionDigits: 0 })} />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* ------------------------------- 401(k) (US) --------------------------------- */
+
+function Retirement401kCalculator() {
+  const [currentAge, setCurrentAge] = useState(30);
+  const [retireAge, setRetireAge] = useState(65);
+  const [currentBalance, setCurrentBalance] = useState(20000);
+  const [salary, setSalary] = useState(80000);
+  const [contributionPct, setContributionPct] = useState(6);
+  const [employerMatchPct, setEmployerMatchPct] = useState(3);
+  const [returnRate, setReturnRate] = useState(7);
+
+  const result = useMemo(() => {
+    const years = Math.max(0, retireAge - currentAge);
+    const monthlyRate = returnRate / 100 / 12;
+    const employeeMonthly = (salary * (contributionPct / 100)) / 12;
+    const matchMonthly = (salary * (Math.min(contributionPct, employerMatchPct) / 100)) / 12;
+    const monthlyDeposit = employeeMonthly + matchMonthly;
+
+    let corpus = currentBalance;
+    for (let m = 0; m < years * 12; m++) {
+      corpus = (corpus + monthlyDeposit) * (1 + monthlyRate);
+    }
+    const totalContributed = currentBalance + employeeMonthly * years * 12;
+    const totalEmployerMatch = matchMonthly * years * 12;
+    return { corpus, totalContributed, totalEmployerMatch, monthlyDeposit, years };
+  }, [currentAge, retireAge, currentBalance, salary, contributionPct, employerMatchPct, returnRate]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">401(k) Retirement Calculator (US)</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Projects your 401(k) balance at retirement, including employer match (up to your contribution
+        rate, matched at the rate you specify).
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <Field label="Current age" value={currentAge} onChange={setCurrentAge} min={16} max={100} />
+          <Field label="Retirement age" value={retireAge} onChange={setRetireAge} min={16} max={100} />
+          <Field label="Current 401(k) balance" value={currentBalance} onChange={setCurrentBalance} min={0} suffix="$" />
+          <Field label="Annual salary" value={salary} onChange={setSalary} min={0} suffix="$/yr" />
+          <Field label="Your contribution" value={contributionPct} onChange={setContributionPct} min={0} max={100} suffix="% of salary" />
+          <Field label="Employer match" value={employerMatchPct} onChange={setEmployerMatchPct} min={0} max={100} suffix="% of salary" />
+          <Field label="Expected annual return" value={returnRate} onChange={setReturnRate} suffix="%" />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Your contributions (incl. starting balance)" value={fmtCurrency(result.totalContributed, "USD", { maximumFractionDigits: 0 })} />
+          <Stat label="Employer match total" value={fmtCurrency(result.totalEmployerMatch, "USD", { maximumFractionDigits: 0 })} />
+          <Stat label={`Projected balance at age ${retireAge}`} value={fmtCurrency(result.corpus, "USD", { maximumFractionDigits: 0 })} />
+        </div>
+        <p className="mt-3 text-[11px] text-muted-foreground md:col-span-2">
+          Simplified projection — doesn't account for annual contribution limit caps, salary growth, or
+          fees. Check IRS.gov for current 401(k) contribution limits before relying on this.
+        </p>
       </Grid>
     </Card>
   );
