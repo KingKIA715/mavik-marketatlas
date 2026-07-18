@@ -447,3 +447,76 @@ export async function fetchMFNav(schemeCode: number): Promise<{ data: MFNav | nu
     return { data: null, source: "unavailable" };
   }
 }
+
+/* ------------------------------------------------------------- NEWS ----- */
+// Country-scoped financial headlines via free public RSS feeds — no API key,
+// no rate limits. A lightweight regex-based RSS 2.0 parser avoids pulling in
+// an XML dependency for what is a handful of well-formed <item> blocks.
+
+import type { CountryCode } from "./market-config";
+
+const NEWS_FEEDS: Record<CountryCode, { url: string; label: string }> = {
+  IN: { url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", label: "Economic Times Markets" },
+  US: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  GB: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  EU: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  AE: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  JP: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  CN: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+};
+
+export interface NewsItem {
+  title: string;
+  link: string;
+  pubDate: string;
+}
+
+function decodeXmlEntities(s: string): string {
+  return s
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
+function extractTag(block: string, tag: string): string {
+  const m = block.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, "i"));
+  if (!m) return "";
+  let v = m[1].trim();
+  const cdata = v.match(/^<!\[CDATA\[([\s\S]*)\]\]>$/);
+  if (cdata) v = cdata[1].trim();
+  return decodeXmlEntities(v);
+}
+
+function parseRSS(xml: string, limit = 8): NewsItem[] {
+  const items: NewsItem[] = [];
+  const blocks = xml.match(/<item[\s\S]*?<\/item>/g) || [];
+  for (const block of blocks.slice(0, limit)) {
+    const title = extractTag(block, "title");
+    const link = extractTag(block, "link");
+    const pubDate = extractTag(block, "pubDate");
+    if (title && link) items.push({ title, link, pubDate });
+  }
+  return items;
+}
+
+export async function fetchNews(country: CountryCode): Promise<{ data: NewsItem[]; source: string }> {
+  const feed = NEWS_FEEDS[country] ?? NEWS_FEEDS.US;
+  try {
+    const xml = await withRetry("news", async () => {
+      const r = await fetch(feed.url, {
+        headers: { accept: "application/rss+xml, application/xml, text/xml, */*" },
+      });
+      if (!r.ok) throw new Error(`news feed ${r.status}`);
+      return r.text();
+    });
+    const items = parseRSS(xml, 8);
+    if (items.length === 0) return { data: [], source: "unavailable" };
+    return { data: items, source: feed.label };
+  } catch (e) {
+    console.warn(`[news:${country}] failed:`, e);
+    return { data: [], source: "unavailable" };
+  }
+}

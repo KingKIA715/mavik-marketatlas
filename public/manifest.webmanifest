@@ -27,10 +27,10 @@
   ],
   "shortcuts": [
     {
-      "name": "Gold Price History",
-      "short_name": "Gold History",
-      "description": "View 5-year gold price history",
-      "url": "/history/gold?source=pwa",
+      "name": "Financial News",
+      "short_name": "News",
+      "description": "Country-scoped financial headlines",
+      "url": "/news?source=pwa",
       "icons": [{ "src": "/icons/icon-96.png", "sizes": "96x96", "type": "image/png" }]
     }
   ]

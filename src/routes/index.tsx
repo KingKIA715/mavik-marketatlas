@@ -24,7 +24,7 @@ import {
   type MetalCode,
   type CryptoCode,
 } from "@/lib/market-config";
-import { getMarketSnapshot, triggerSync, type MarketSnapshot } from "@/lib/market.functions";
+import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -47,6 +47,8 @@ import {
   Fuel,
   Calculator,
   X,
+  Newspaper,
+  ExternalLink,
 } from "lucide-react";
 
 import {
@@ -199,6 +201,8 @@ function Dashboard() {
             isLoading={isLoading}
           />
         )}
+
+        {!selectedAsset ? <NewsTeaser country={country} /> : null}
 
         <Footer sources={{
           metals: data.metalsSource,
@@ -1380,6 +1384,63 @@ function FuelTile({
 /* =====================================================================
  * 5) CURRENCIES
  * ===================================================================== */
+
+/* --------------------------------- News Teaser ------------------------------ */
+
+function NewsTeaser({ country }: { country: CountryCode }) {
+  const fetcher = useServerFn(getNews);
+  const [items, setItems] = useState<{ title: string; link: string; pubDate: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetcher({ data: { country } })
+      .then((res) => {
+        if (!cancelled) setItems(res.data.slice(0, 3));
+      })
+      .catch(() => {
+        if (!cancelled) setItems([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [country, fetcher]);
+
+  if (!loading && items.length === 0) return null;
+
+  return (
+    <section>
+      <SectionHeader title="Financial News" hint={`${COUNTRIES[country].flag} ${COUNTRIES[country].name} headlines`}>
+        <a
+          href={`/news?country=${country}`}
+          className="text-xs font-medium text-[color:var(--brand)] hover:underline"
+        >
+          See all
+        </a>
+      </SectionHeader>
+      <div className="space-y-2">
+        {loading
+          ? [0, 1, 2].map((i) => <div key={i} className="h-14 animate-pulse rounded-xl bg-surface-alt" />)
+          : items.map((item, i) => (
+              <a
+                key={i}
+                href={item.link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start justify-between gap-3 rounded-xl border border-border bg-card p-3 text-sm shadow-sm transition-shadow hover:shadow-md"
+              >
+                <span className="text-foreground">{item.title}</span>
+                <ExternalLink className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </a>
+            ))}
+      </div>
+    </section>
+  );
+}
 
 function Currencies({
   rates,

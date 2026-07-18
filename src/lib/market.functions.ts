@@ -11,6 +11,7 @@ import {
   fetchHistory,
   searchMF,
   fetchMFNav,
+  fetchNews,
   type Crude,
   type CryptoPrices,
   type CryptoChange,
@@ -19,7 +20,7 @@ import {
   type Quote,
   type Rates,
 } from "./market-providers.server";
-import { COUNTRIES, type MetalCode, type CryptoCode } from "./market-config";
+import { COUNTRIES, type MetalCode, type CryptoCode, type CountryCode } from "./market-config";
 
 export interface MarketSnapshot {
   fetchedAt: string;
@@ -203,4 +204,15 @@ export const getMutualFundNav = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     setResponseHeader("cache-control", "public, max-age=3600, stale-while-revalidate=86400");
     return cached(`mf-nav:${data.schemeCode}`, ONE_HOUR, () => fetchMFNav(data.schemeCode));
+  });
+
+export const getNews = createServerFn({ method: "GET" })
+  .inputValidator((data: { country: string }) => {
+    const country = data.country as CountryCode;
+    if (!(country in COUNTRIES)) throw new Error("Invalid country");
+    return { country };
+  })
+  .handler(async ({ data }) => {
+    setResponseHeader("cache-control", "public, max-age=900, stale-while-revalidate=3600");
+    return cached(`news:${data.country}`, FIFTEEN_MIN, () => fetchNews(data.country));
   });

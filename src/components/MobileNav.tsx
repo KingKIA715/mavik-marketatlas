@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Home, Calculator, TrendingUp } from "lucide-react";
+import { Home, Calculator, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MobileNavProps {
@@ -10,7 +10,7 @@ export function MobileNav({ currentPath = "/" }: MobileNavProps) {
   const items = [
     { to: "/", label: "Home", icon: Home },
     { to: "/resources", label: "Tools", icon: Calculator },
-    { to: "/history/gold", label: "Gold", icon: TrendingUp },
+    { to: "/news", label: "News", icon: Newspaper },
   ];
 
   return (
