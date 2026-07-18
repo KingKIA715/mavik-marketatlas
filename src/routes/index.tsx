@@ -38,11 +38,13 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
+import { GoldDutyCalculator } from "@/components/GoldDutyCalculator";
 import {
   LineChart as LineChartIcon,
   TrendingDown,
   TrendingUp,
   Fuel,
+  Calculator,
 } from "lucide-react";
 
 import {
@@ -139,6 +141,7 @@ function Dashboard() {
             includeGST={includeGST}
             onGSTChange={setIncludeGST}
             isLoading={isLoading}
+            usdRates={data.rates.rates}
           />
         )}
         {(!selectedAsset || selectedAsset === "crypto") && (
@@ -446,6 +449,7 @@ function PreciousMetals({
   includeGST,
   onGSTChange,
   isLoading,
+  usdRates,
 }: {
   country: CountryCode;
   metals: MarketSnapshot["metals"];
@@ -456,6 +460,7 @@ function PreciousMetals({
   includeGST: boolean;
   onGSTChange: (v: boolean) => void;
   isLoading: boolean;
+  usdRates: Record<string, number>;
 }) {
   const def = COUNTRIES[country];
   const premium = RETAIL_PREMIUM[country];
@@ -503,6 +508,8 @@ function PreciousMetals({
             currency={currency}
             country={country}
             fx={fx}
+            spotUsdOz={metals[m.code]}
+            usdRates={usdRates}
           />
         ))}
       </div>
@@ -531,6 +538,8 @@ function MetalRow({
   currency,
   country,
   fx,
+  spotUsdOz,
+  usdRates,
 }: {
   metalCode: MetalCode;
   metalName: string;
@@ -541,9 +550,12 @@ function MetalRow({
   currency: string;
   country: CountryCode;
   fx: number;
+  spotUsdOz: number;
+  usdRates: Record<string, number>;
 }) {
   const [open, setOpen] = useState(false);
   const [historyKarat, setHistoryKarat] = useState<number | null>(null);
+  const [calcOpen, setCalcOpen] = useState(false);
   const def = COUNTRIES[country];
   const valid = Number.isFinite(perGram) && perGram > 0;
 
@@ -583,6 +595,16 @@ function MetalRow({
     </span>
   </div>
 
+  <div className="flex items-center gap-1.5">
+    {isGold ? (
+      <button
+        onClick={() => setCalcOpen(true)}
+        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-alt"
+      >
+        <Calculator className="h-3 w-3" />
+        Duty calculator
+      </button>
+    ) : null}
      <button
             onClick={() => setOpen(true)}
             className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-alt"
@@ -590,6 +612,7 @@ function MetalRow({
             <LineChartIcon className="h-3 w-3" />
             5y history
           </button>
+  </div>
         </header>
 
         <div className="p-4">
@@ -692,6 +715,15 @@ function MetalRow({
           unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"} · ${historyKarat}K`}
           tint="#d97706"
           alignMetal="XAU"
+        />
+      ) : null}
+      {isGold ? (
+        <GoldDutyCalculator
+          open={calcOpen}
+          onOpenChange={setCalcOpen}
+          spotUsdOz={spotUsdOz}
+          usdRates={usdRates}
+          defaultCountry={country}
         />
       ) : null}
     </>

@@ -161,6 +161,7 @@ export const INDIA_GST = 0.03;
 
 export const GRAMS_PER_KG = 1000;
 export const GRAMS_PER_SOVEREIGN = 8; // 1 Pavan/Savaran ≈ 8 g (South India standard)
+export const GRAMS_PER_TOLA = 11.6638; // 1 Tola — standard unit across India, Pakistan, Gulf gold trade
 export const GRAMS_PER_TROY_OUNCE = 31.1034768;
 
 export type MetalCode = "XAU" | "XAG" | "XPT";
