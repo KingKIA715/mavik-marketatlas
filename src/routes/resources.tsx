@@ -40,6 +40,7 @@ import {
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
+import { useAutoScroll } from "@/lib/use-auto-scroll";
 
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -75,6 +76,7 @@ export const Route = createFileRoute("/resources")({
 function ResourcesPage() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
+  const scrollRef = useAutoScroll<HTMLDivElement>();
 const tools = [
   { id: "sip", label: "SIP", icon: TrendingUp },
   { id: "stepup", label: "Step-up SIP", icon: ChevronsUp },
@@ -106,7 +108,7 @@ const tools = [
         </div>
 
 <Tabs defaultValue="sip" className="w-full">
-    <TabsList className="relative mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <TabsList ref={scrollRef} className="relative mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
     <ScrollIndicator />
     {tools.map((t) => {
       const Icon = t.icon;

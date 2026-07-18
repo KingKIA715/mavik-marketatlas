@@ -25,6 +25,7 @@ import {
   type CryptoCode,
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
+import { useAutoScroll } from "@/lib/use-auto-scroll";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -242,60 +243,79 @@ function TodaySnapshot({
   onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
 }) {
   const def = COUNTRIES[country];
+  const scrollRef = useAutoScroll<HTMLDivElement>();
 
   const movers = useMemo<Mover[]>(() => {
-    const list: Mover[] = [];
+    const pick = (candidates: Mover[]): Mover | null => {
+      const valid = candidates.filter((m) => Number.isFinite(m.changePercent) && m.changePercent !== 0);
+      if (valid.length === 0) return null;
+      return valid.sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))[0];
+    };
 
-    METALS.forEach((m) => {
-      const c = data.metalsChange[m.code];
-      if (c && Number.isFinite(c.changePercent)) {
-        list.push({ key: m.code, label: m.name, changePercent: c.changePercent, assetFilter: "metals", emoji: "🪙" });
-      }
-    });
+    // Gold
+    const goldChg = data.metalsChange.XAU;
+    const gold: Mover | null =
+      goldChg && Number.isFinite(goldChg.changePercent) && goldChg.changePercent !== 0
+        ? { key: "XAU", label: "Gold", changePercent: goldChg.changePercent, assetFilter: "metals", emoji: "🪙" }
+        : null;
 
-    CRYPTOS.forEach((c) => {
+    // Silver
+    const silverChg = data.metalsChange.XAG;
+    const silver: Mover | null =
+      silverChg && Number.isFinite(silverChg.changePercent) && silverChg.changePercent !== 0
+        ? { key: "XAG", label: "Silver", changePercent: silverChg.changePercent, assetFilter: "metals", emoji: "🥈" }
+        : null;
+
+    // Markets — biggest mover among this country's own stock indices
+    const marketCandidates: Mover[] = def.stockIndices
+      .map((ticker): Mover | null => {
+        const q = data.quotes.find((x) => x.ticker === ticker);
+        if (!q) return null;
+        const name = STOCKS[ticker]?.name ?? ticker;
+        return { key: ticker, label: name, changePercent: q.changePercent, assetFilter: "stocks", emoji: "📈" };
+      })
+      .filter((m): m is Mover => m !== null);
+    const markets = pick(marketCandidates);
+
+    // Crypto — biggest mover among tracked coins
+    const cryptoCandidates: Mover[] = CRYPTOS.map((c): Mover | null => {
       const chg = data.cryptoChange[c.code];
-      if (chg && Number.isFinite(chg.changePercent)) {
-        list.push({ key: c.code, label: c.name, changePercent: chg.changePercent, assetFilter: "crypto", emoji: c.icon });
-      }
-    });
+      if (!chg) return null;
+      return { key: c.code, label: c.name, changePercent: chg.changePercent, assetFilter: "crypto", emoji: c.icon };
+    }).filter((m): m is Mover => m !== null);
+    const crypto = pick(cryptoCandidates);
 
-    def.stockIndices.forEach((ticker) => {
-      const q = data.quotes.find((x) => x.ticker === ticker);
-      const name = STOCKS[ticker]?.name ?? ticker;
-      if (q && Number.isFinite(q.changePercent)) {
-        list.push({ key: ticker, label: name, changePercent: q.changePercent, assetFilter: "stocks", emoji: "📈" });
-      }
-    });
+    // Crude
+    const crude: Mover | null =
+      Number.isFinite(data.crude.changePercent) && data.crude.changePercent !== 0
+        ? { key: "crude", label: "Crude Oil", changePercent: data.crude.changePercent, assetFilter: "crude", emoji: "🛢️" }
+        : null;
 
-    if (Number.isFinite(data.crude.changePercent)) {
-      list.push({ key: "crude", label: "Crude Oil", changePercent: data.crude.changePercent, assetFilter: "crude", emoji: "🛢️" });
-    }
-
+    // FX — biggest mover among featured pairs vs the current base currency
     const baseRate = data.rates.rates[def.currency];
     const baseRateY = data.ratesYesterday.rates[def.currency];
     const featuredFx = ["USD", "EUR", "GBP", "JPY", "AED", "INR", "CNY"].filter((c) => c !== def.currency);
-    featuredFx.forEach((ccy) => {
-      const rate = data.rates.rates[ccy];
-      const rateY = data.ratesYesterday.rates[ccy];
-      if (!rate || !rateY || !baseRate || !baseRateY) return;
-      const perBase = rate / baseRate;
-      const perBaseY = rateY / baseRateY;
-      if (!Number.isFinite(perBase) || !Number.isFinite(perBaseY) || perBaseY === 0) return;
-      const changePercent = ((perBase - perBaseY) / perBaseY) * 100;
-      list.push({
-        key: ccy,
-        label: `${def.currency}/${ccy}`,
-        changePercent,
-        assetFilter: "fx",
-        emoji: CURRENCY_FLAGS[ccy] || "💱",
-      });
-    });
+    const fxCandidates: Mover[] = featuredFx
+      .map((ccy): Mover | null => {
+        const rate = data.rates.rates[ccy];
+        const rateY = data.ratesYesterday.rates[ccy];
+        if (!rate || !rateY || !baseRate || !baseRateY) return null;
+        const perBase = rate / baseRate;
+        const perBaseY = rateY / baseRateY;
+        if (!Number.isFinite(perBase) || !Number.isFinite(perBaseY) || perBaseY === 0) return null;
+        const changePercent = ((perBase - perBaseY) / perBaseY) * 100;
+        return {
+          key: ccy,
+          label: `${def.currency}/${ccy}`,
+          changePercent,
+          assetFilter: "fx",
+          emoji: CURRENCY_FLAGS[ccy] || "💱",
+        };
+      })
+      .filter((m): m is Mover => m !== null);
+    const fx = pick(fxCandidates);
 
-    return list
-      .filter((m) => Number.isFinite(m.changePercent) && m.changePercent !== 0)
-      .sort((a, b) => Math.abs(b.changePercent) - Math.abs(a.changePercent))
-      .slice(0, 6);
+    return [gold, silver, markets, crypto, crude, fx].filter((m): m is Mover => m !== null);
   }, [data, def]);
 
   if (movers.length === 0) return null;
@@ -323,7 +343,7 @@ function TodaySnapshot({
             {headline}
           </p>
         ) : null}
-        <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {movers.map((m) => {
             const up = m.changePercent >= 0;
             return (
@@ -357,10 +377,12 @@ function CountryTiles({
   country: CountryCode;
   onChange: (c: CountryCode) => void;
 }) {
+  const scrollRef = useAutoScroll<HTMLDivElement>();
+
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div className="relative flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
+        <div ref={scrollRef} className="relative flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
           <ScrollIndicator />
 
           {COUNTRY_ORDER.map((c) => {
@@ -413,10 +435,12 @@ function AssetTiles({
     { id: "fx", label: "FX", icon: "💱" },
   ];
 
+  const scrollRef = useAutoScroll<HTMLDivElement>();
+
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div className="grid grid-cols-5 gap-2 sm:gap-3">
+        <div ref={scrollRef} className="grid grid-cols-5 gap-2 sm:gap-3">
           {assets.map((asset) => {
             const active = selectedAsset === asset.id;
             return (

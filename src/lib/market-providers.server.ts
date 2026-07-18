@@ -458,11 +458,13 @@ import type { CountryCode } from "./market-config";
 const NEWS_FEEDS: Record<CountryCode, { url: string; label: string }> = {
   IN: { url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", label: "Economic Times Markets" },
   US: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  GB: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  EU: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  AE: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  JP: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  CN: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+  GB: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  // No verified country-specific free feed found for these — BBC Business gives
+  // broader international coverage than the US-centric Yahoo feed used previously.
+  EU: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  AE: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  JP: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  CN: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
 };
 
 export interface NewsItem {
