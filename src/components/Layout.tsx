@@ -140,9 +140,11 @@ interface HeaderProps {
   fetchedAt?: string;
   locale?: string;
   showBackLink?: "dashboard" | "resources";
+  /** Label shown when no live fetchedAt/locale is available (e.g. static pages). */
+  subtitle?: string;
 }
 
-export function Header({ fetchedAt, locale, showBackLink }: HeaderProps) {
+export function Header({ fetchedAt, locale, showBackLink, subtitle = "Resources" }: HeaderProps) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
@@ -190,7 +192,7 @@ export function Header({ fetchedAt, locale, showBackLink }: HeaderProps) {
         ) : (
           <div className="mt-2">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-white/70">
-              Resources
+              {subtitle}
             </span>
           </div>
         )}

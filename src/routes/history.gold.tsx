@@ -3,7 +3,8 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { getHistory } from "@/lib/market.functions";
 import { fmtNumber, fmtPct } from "@/lib/format";
 import type { HistoryPoint } from "@/lib/market-providers.server";
-
+import { Header, Footer } from "@/components/Layout";
+import { MobileNav } from "@/components/MobileNav";
 const SITE = "https://mavik-marketatlas.lovable.app";
 
 const goldHistoryQuery = queryOptions({
@@ -109,22 +110,17 @@ function GoldHistoryPage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-6 py-4">
-          <Link to="/" className="text-sm font-medium text-muted-foreground hover:text-foreground">
-            ← MarketAtlas
-          </Link>
-          <span className="text-xs text-muted-foreground">Source: {data.source}</span>
-        </div>
-      </header>
+      <Header showBackLink="dashboard" subtitle="Gold Price History" />
 
-      <main className="mx-auto max-w-5xl px-6 py-10">
+      <main className="mx-auto max-w-5xl px-6 pb-16 py-10">
         <nav className="mb-4 text-xs text-muted-foreground">
           <Link to="/" className="hover:text-foreground">Home</Link>
           <span className="mx-2">/</span>
           <span>History</span>
           <span className="mx-2">/</span>
           <span className="text-foreground">Gold</span>
+          <span className="mx-2">·</span>
+          <span>Source: {data.source}</span>
         </nav>
 
         <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
@@ -267,6 +263,9 @@ function GoldHistoryPage() {
           </p>
         </section>
       </main>
+
+      <Footer />
+      <MobileNav currentPath="/history/gold" />
     </div>
   );
 }

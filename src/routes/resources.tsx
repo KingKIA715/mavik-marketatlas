@@ -36,6 +36,7 @@ import {
   Fuel,
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
+import { MobileNav } from "@/components/MobileNav";
 
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -88,7 +89,7 @@ const tools = [
     <div className="min-h-screen bg-background text-foreground">
       <Header showBackLink="dashboard" />
 
-      <main className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-10">
+      <main className="mx-auto max-w-6xl px-4 pb-16 py-6 sm:px-6 sm:py-10">
         <div className="mb-6">
           <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
             Financial Calculators
@@ -153,6 +154,8 @@ const tools = [
       </main>
 
       <Footer />
+
+      <MobileNav currentPath="/resources" />
     </div>
   );
 }

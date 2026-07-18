@@ -39,12 +39,14 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HistoryDialog } from "@/components/HistoryDialog";
 import { GoldDutyCalculator } from "@/components/GoldDutyCalculator";
+import { MobileNav } from "@/components/MobileNav";
 import {
   LineChart as LineChartIcon,
   TrendingDown,
   TrendingUp,
   Fuel,
   Calculator,
+  X,
 } from "lucide-react";
 
 import {
@@ -188,6 +190,8 @@ function Dashboard() {
           crude: data.crudeSource,
         }} />
       </main>
+
+      <MobileNav currentPath="/" />
     </div>
   );
 }
@@ -249,7 +253,7 @@ function AssetTiles({
   onChange,
 }: {
   selectedAsset: string | null;
-  onChange: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
+  onChange: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx" | null) => void;
 }) {
   const assets = [
     { id: "metals", label: "Metals", icon: "🪙" },
@@ -269,7 +273,9 @@ function AssetTiles({
               <button
                 key={asset.id}
                 type="button"
-                onClick={() => onChange(asset.id as any)}
+                onClick={() => onChange(active ? null : (asset.id as any))}
+                aria-pressed={active}
+                title={active ? `Showing ${asset.label} only — tap to show all` : `Show ${asset.label} only`}
                 className={cn(
                   "flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition-colors sm:px-3 sm:py-3 sm:gap-1.5",
                   active
@@ -285,6 +291,16 @@ function AssetTiles({
             );
           })}
         </div>
+        {selectedAsset ? (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            className="mx-auto mt-2 flex items-center gap-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="h-3 w-3" />
+            Show all markets
+          </button>
+        ) : null}
       </div>
     </div>
   );
