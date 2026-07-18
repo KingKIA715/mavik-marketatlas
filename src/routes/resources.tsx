@@ -14,7 +14,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
-import { GRAMS_PER_TROY_OUNCE } from "@/lib/market-config";
+import {
+  GRAMS_PER_TROY_OUNCE,
+  COUNTRIES,
+  COUNTRY_ORDER,
+  FUEL_REFERENCE,
+  FUEL_SPREAD,
+  type CountryCode,
+} from "@/lib/market-config";
 import {
   TrendingUp,
   Home,
@@ -22,6 +29,11 @@ import {
   Flame,
   ArrowLeftRight,
   PiggyBank,
+  Banknote,
+  ChevronsUp,
+  ShieldCheck,
+  Percent,
+  Fuel,
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 
@@ -61,10 +73,15 @@ function ResourcesPage() {
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
 const tools = [
   { id: "sip", label: "SIP", icon: TrendingUp },
+  { id: "stepup", label: "Step-up SIP", icon: ChevronsUp },
   { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
+  { id: "fdrd", label: "FD/RD", icon: Banknote },
+  { id: "ppf", label: "PPF", icon: ShieldCheck },
   { id: "emi", label: "EMI", icon: Home },
   { id: "metal", label: "Gold/Silver", icon: Coins },
   { id: "inflation", label: "Inflation", icon: Flame },
+  { id: "gst", label: "GST/VAT", icon: Percent },
+  { id: "fuel", label: "Fuel Cost", icon: Fuel },
   { id: "fx", label: "Currency", icon: ArrowLeftRight },
 ];
   return (
@@ -102,8 +119,17 @@ const tools = [
         <TabsContent value="sip">
             <SIPCalculator />
           </TabsContent>
+          <TabsContent value="stepup">
+            <StepUpSIPCalculator />
+          </TabsContent>
           <TabsContent value="lumpsum">
             <LumpsumCalculator />
+          </TabsContent>
+          <TabsContent value="fdrd">
+            <FDRDCalculator />
+          </TabsContent>
+          <TabsContent value="ppf">
+            <PPFCalculator />
           </TabsContent>
           <TabsContent value="emi">
             <EMICalculator />
@@ -113,6 +139,12 @@ const tools = [
           </TabsContent>
           <TabsContent value="inflation">
             <InflationCalculator />
+          </TabsContent>
+          <TabsContent value="gst">
+            <GSTCalculator />
+          </TabsContent>
+          <TabsContent value="fuel">
+            <FuelCostCalculator data={data} />
           </TabsContent>
           <TabsContent value="fx">
             <CurrencyConverter data={data} />
@@ -146,6 +178,7 @@ function Field({
   suffix,
   step = "any",
   min,
+  max,
 }: {
   label: string;
   value: number;
@@ -153,6 +186,7 @@ function Field({
   suffix?: string;
   step?: string;
   min?: number;
+  max?: number;
 }) {
   return (
     <div className="space-y-1.5">
@@ -163,6 +197,7 @@ function Field({
           inputMode="decimal"
           step={step}
           min={min}
+          max={max}
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => {
             const val = e.target.value;
@@ -498,6 +533,373 @@ function CurrencyConverter({ data }: { data: MarketSnapshot }) {
                 : "—"
             }
           />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* ------------------------------- Step-up SIP ------------------------------ */
+
+function StepUpSIPCalculator() {
+  const [monthly, setMonthly] = useState(10000);
+  const [years, setYears] = useState(10);
+  const [rate, setRate] = useState(12);
+  const [stepUp, setStepUp] = useState(10);
+  const [currency, setCurrency] = useState("INR");
+
+  const { invested, future, gain } = useMemo(() => {
+    const monthlyRate = rate / 100 / 12;
+    let corpus = 0;
+    let invested = 0;
+    let currentMonthly = monthly;
+    for (let y = 0; y < years; y++) {
+      for (let m = 0; m < 12; m++) {
+        corpus = (corpus + currentMonthly) * (1 + monthlyRate);
+        invested += currentMonthly;
+      }
+      currentMonthly *= 1 + stepUp / 100;
+    }
+    return { invested, future: corpus, gain: corpus - invested };
+  }, [monthly, years, rate, stepUp]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">Step-up SIP Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        SIP where your monthly investment increases every year — closer to how income (and savings)
+        actually grow.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <Field label="Starting monthly investment" value={monthly} onChange={setMonthly} min={0} />
+          <Field label="Annual step-up" value={stepUp} onChange={setStepUp} min={0} suffix="% p.a." />
+          <Field label="Duration (years)" value={years} onChange={setYears} min={0} suffix="yrs" />
+          <Field label="Expected return rate" value={rate} onChange={setRate} suffix="% p.a." />
+          <CurrencyPicker value={currency} onChange={setCurrency} />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Invested" value={fmtCurrency(invested, currency, { maximumFractionDigits: 0 })} />
+          <Stat label="Est. returns" value={fmtCurrency(gain, currency, { maximumFractionDigits: 0 })} />
+          <Stat label="Future value" value={fmtCurrency(future, currency, { maximumFractionDigits: 0 })} />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* --------------------------------- FD / RD --------------------------------- */
+
+const COMPOUNDING_OPTIONS = [
+  { id: "annually", label: "Annually", n: 1 },
+  { id: "halfyearly", label: "Half-yearly", n: 2 },
+  { id: "quarterly", label: "Quarterly", n: 4 },
+  { id: "monthly", label: "Monthly", n: 12 },
+];
+
+function FDRDCalculator() {
+  const [mode, setMode] = useState<"fd" | "rd">("fd");
+  const [currency, setCurrency] = useState("INR");
+  const [rate, setRate] = useState(7);
+  const [years, setYears] = useState(5);
+
+  // FD-only
+  const [principal, setPrincipal] = useState(100000);
+  const [compounding, setCompounding] = useState("quarterly");
+
+  // RD-only
+  const [monthly, setMonthly] = useState(5000);
+
+  const fdResult = useMemo(() => {
+    const freq = COMPOUNDING_OPTIONS.find((c) => c.id === compounding)?.n ?? 4;
+    const maturity = principal * Math.pow(1 + rate / 100 / freq, freq * years);
+    return { invested: principal, maturity, interest: maturity - principal };
+  }, [principal, rate, years, compounding]);
+
+  const rdResult = useMemo(() => {
+    const months = years * 12;
+    const monthlyRate = rate / 100 / 12;
+    let maturity = 0;
+    for (let m = 0; m < months; m++) {
+      maturity = (maturity + monthly) * (1 + monthlyRate);
+    }
+    const invested = monthly * months;
+    return { invested, maturity, interest: maturity - invested };
+  }, [monthly, rate, years]);
+
+  const result = mode === "fd" ? fdResult : rdResult;
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">Fixed / Recurring Deposit Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Maturity value for a bank FD (lump sum) or RD (monthly deposits).
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Deposit type</Label>
+            <Select value={mode} onValueChange={(v) => setMode(v as "fd" | "rd")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fd">Fixed Deposit (lump sum)</SelectItem>
+                <SelectItem value="rd">Recurring Deposit (monthly)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          {mode === "fd" ? (
+            <>
+              <Field label="Deposit amount" value={principal} onChange={setPrincipal} min={0} />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Compounding</Label>
+                <Select value={compounding} onValueChange={setCompounding}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {COMPOUNDING_OPTIONS.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </>
+          ) : (
+            <Field label="Monthly deposit" value={monthly} onChange={setMonthly} min={0} />
+          )}
+
+          <Field label="Interest rate" value={rate} onChange={setRate} suffix="% p.a." />
+          <Field label="Tenure" value={years} onChange={setYears} min={0} suffix="yrs" />
+          <CurrencyPicker value={currency} onChange={setCurrency} />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Invested" value={fmtCurrency(result.invested, currency, { maximumFractionDigits: 0 })} />
+          <Stat label="Interest earned" value={fmtCurrency(result.interest, currency, { maximumFractionDigits: 0 })} />
+          <Stat label="Maturity value" value={fmtCurrency(result.maturity, currency, { maximumFractionDigits: 0 })} />
+        </div>
+        {mode === "rd" ? (
+          <p className="mt-3 text-[11px] text-muted-foreground md:col-span-2">
+            Estimated with monthly compounding — most Indian banks compound RDs quarterly, so actual
+            maturity may differ slightly from your passbook.
+          </p>
+        ) : null}
+      </Grid>
+    </Card>
+  );
+}
+
+/* ---------------------------------- PPF ------------------------------------ */
+
+function PPFCalculator() {
+  const [yearly, setYearly] = useState(150000);
+  const [rate, setRate] = useState(7.1);
+  const [years, setYears] = useState(15);
+
+  const { invested, maturity, interest } = useMemo(() => {
+    const r = rate / 100;
+    // Annuity-due: deposit at the start of each year, then that year's interest applies.
+    let corpus = 0;
+    for (let y = 0; y < years; y++) {
+      corpus = (corpus + yearly) * (1 + r);
+    }
+    const invested = yearly * years;
+    return { invested, maturity: corpus, interest: corpus - invested };
+  }, [yearly, rate, years]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">PPF Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Public Provident Fund — India's government-backed, tax-free 15-year savings scheme (extendable
+        in 5-year blocks). Uses a sample rate; check the current PPF rate before relying on this.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <Field
+            label="Yearly contribution"
+            value={yearly}
+            onChange={setYearly}
+            min={0}
+            suffix="₹/yr"
+          />
+          <Field label="PPF interest rate" value={rate} onChange={setRate} suffix="% p.a." />
+          <Field label="Duration" value={years} onChange={setYears} min={15} suffix="yrs" />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Total contributed" value={fmtCurrency(invested, "INR", { maximumFractionDigits: 0 })} />
+          <Stat label="Interest earned" value={fmtCurrency(interest, "INR", { maximumFractionDigits: 0 })} />
+          <Stat label="Maturity value" value={fmtCurrency(maturity, "INR", { maximumFractionDigits: 0 })} />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* -------------------------------- GST / VAT --------------------------------- */
+
+const GST_PRESETS = [
+  { id: "in5", label: "India · 5%", rate: 5 },
+  { id: "in12", label: "India · 12%", rate: 12 },
+  { id: "in18", label: "India · 18%", rate: 18 },
+  { id: "in28", label: "India · 28%", rate: 28 },
+  { id: "ae5", label: "UAE VAT · 5%", rate: 5 },
+  { id: "custom", label: "Custom rate", rate: -1 },
+];
+
+function GSTCalculator() {
+  const [direction, setDirection] = useState<"add" | "remove">("add");
+  const [amount, setAmount] = useState(10000);
+  const [preset, setPreset] = useState("in18");
+  const [customRate, setCustomRate] = useState(18);
+  const [currency, setCurrency] = useState("INR");
+
+  const rate = preset === "custom" ? customRate : GST_PRESETS.find((p) => p.id === preset)?.rate ?? 18;
+
+  const { base, gstAmount, total } = useMemo(() => {
+    if (direction === "add") {
+      const gstAmount = amount * (rate / 100);
+      return { base: amount, gstAmount, total: amount + gstAmount };
+    }
+    const base = amount / (1 + rate / 100);
+    const gstAmount = amount - base;
+    return { base, gstAmount, total: amount };
+  }, [amount, rate, direction]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">GST / VAT Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Add GST to a base amount, or work out the base amount from a GST-inclusive price.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
+            <Select value={direction} onValueChange={(v) => setDirection(v as "add" | "remove")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="add">Add GST to amount</SelectItem>
+                <SelectItem value="remove">Remove GST (amount is inclusive)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Field
+            label={direction === "add" ? "Base amount" : "GST-inclusive amount"}
+            value={amount}
+            onChange={setAmount}
+            min={0}
+          />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">GST / VAT slab</Label>
+            <Select value={preset} onValueChange={setPreset}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {GST_PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {preset === "custom" ? (
+            <Field label="Custom rate" value={customRate} onChange={setCustomRate} min={0} suffix="%" />
+          ) : null}
+          <CurrencyPicker value={currency} onChange={setCurrency} />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Base amount" value={fmtCurrency(base, currency, { maximumFractionDigits: 2 })} />
+          <Stat label={`GST (${fmtNumber(rate, 0)}%)`} value={fmtCurrency(gstAmount, currency, { maximumFractionDigits: 2 })} />
+          <Stat label="Total" value={fmtCurrency(total, currency, { maximumFractionDigits: 2 })} />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* ------------------------------- Fuel Cost ---------------------------------- */
+
+function FuelCostCalculator({ data }: { data: MarketSnapshot }) {
+  const [country, setCountry] = useState<CountryCode>("IN");
+  const [fuelType, setFuelType] = useState<"petrol" | "diesel">("petrol");
+  const [mileage, setMileage] = useState(15);
+  const [dailyDistance, setDailyDistance] = useState(40);
+  const [daysPerMonth, setDaysPerMonth] = useState(24);
+
+  const def = COUNTRIES[country];
+  const distanceUnit = def.fuelVolumeUnit === "gal" ? "mi" : "km";
+  const volumeUnit = def.fuelVolumeUnit === "gal" ? "gal" : "L";
+
+  const { pricePerUnit, monthlyCost, yearlyCost, volumePerMonth } = useMemo(() => {
+    const fx = data.rates.rates[def.currency] ?? NaN;
+    const crudeLocal = data.crude.pricePerBarrelUSD * fx;
+    const spread = FUEL_SPREAD[country];
+    const crudePerUnit = def.fuelVolumeUnit === "gal" ? crudeLocal / 42 : crudeLocal / 159;
+
+    const derived = Number.isFinite(crudePerUnit) && crudePerUnit > 0
+      ? crudePerUnit * spread[fuelType]
+      : NaN;
+    const fallback = FUEL_REFERENCE[country][fuelType];
+    const pricePerUnit = Number.isFinite(derived) && derived > 0 ? derived : fallback;
+
+    const volumePerMonth =
+      mileage > 0 ? (dailyDistance * daysPerMonth) / mileage : NaN;
+    const monthlyCost = volumePerMonth * pricePerUnit;
+
+    return { pricePerUnit, monthlyCost, yearlyCost: monthlyCost * 12, volumePerMonth };
+  }, [country, fuelType, mileage, dailyDistance, daysPerMonth, data, def]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">Fuel Cost Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Estimated monthly commute cost from today's live crude-derived {fuelType} price.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Country</Label>
+            <Select value={country} onValueChange={(v) => setCountry(v as CountryCode)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {COUNTRY_ORDER.map((c) => (
+                  <SelectItem key={c} value={c}>{COUNTRIES[c].flag} {COUNTRIES[c].name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Fuel type</Label>
+            <Select value={fuelType} onValueChange={(v) => setFuelType(v as "petrol" | "diesel")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="petrol">Petrol</SelectItem>
+                <SelectItem value="diesel">Diesel</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Field
+            label={`Mileage (${distanceUnit}/${volumeUnit})`}
+            value={mileage}
+            onChange={setMileage}
+            min={0}
+          />
+          <Field
+            label={`Daily distance (${distanceUnit})`}
+            value={dailyDistance}
+            onChange={setDailyDistance}
+            min={0}
+          />
+          <Field label="Days driven per month" value={daysPerMonth} onChange={setDaysPerMonth} min={0} max={31} />
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat
+            label={`${fuelType[0].toUpperCase()}${fuelType.slice(1)} price`}
+            value={`${fmtCurrency(pricePerUnit, def.currency, { maximumFractionDigits: 2 })}/${volumeUnit}`}
+          />
+          <Stat
+            label={`${volumeUnit} used / month`}
+            value={Number.isFinite(volumePerMonth) ? `${fmtNumber(volumePerMonth, 1)} ${volumeUnit}` : "—"}
+          />
+          <Stat label="Monthly cost" value={fmtCurrency(monthlyCost, def.currency, { maximumFractionDigits: 0 })} />
+          <Stat label="Yearly cost" value={fmtCurrency(yearlyCost, def.currency, { maximumFractionDigits: 0 })} />
         </div>
       </Grid>
     </Card>
