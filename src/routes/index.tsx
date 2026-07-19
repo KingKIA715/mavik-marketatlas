@@ -26,6 +26,8 @@ import {
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { useAutoScroll } from "@/lib/use-auto-scroll";
+import { usePinned, usePriceAlerts, type PriceAlert } from "@/lib/use-watchlist";
+import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import {
@@ -35,6 +37,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,6 +60,11 @@ import {
   X,
   Newspaper,
   ExternalLink,
+  Star,
+  Search as SearchIcon,
+  Bell,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 import {
@@ -62,12 +77,13 @@ import {
 } from "@/components/SkeletonLoaders";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 
-const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
+const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>, refetchIntervalMs: number | false = false) =>
   queryOptions({
     queryKey: ["market-snapshot"],
     queryFn: fetcher,
     staleTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
+    refetchInterval: refetchIntervalMs,
   });
 
 export const Route = createFileRoute("/")({
@@ -98,7 +114,10 @@ export const Route = createFileRoute("/")({
 
 function Dashboard() {
   const fetcher = useServerFn(getMarketSnapshot);
-  const { data, isLoading } = useSuspenseQuery(snapshotQuery(fetcher));
+  const { alerts, add: addAlert, remove: removeAlert, markFired } = usePriceAlerts();
+  const hasActiveAlerts = alerts.some((a) => !a.firedAt);
+  const { data, isLoading } = useSuspenseQuery(snapshotQuery(fetcher, hasActiveAlerts ? 5 * 60 * 1000 : false));
+  const { pinned, toggle: togglePinned, isPinned } = usePinned();
   const [country, setCountry] = useState<CountryCode>("IN");
   const [selectedAsset, setSelectedAsset] = useState<"metals" | "crypto" | "stocks" | "crude" | "fx" | null>(null);
   const [includeGST, setIncludeGST] = useState(false);
@@ -139,11 +158,66 @@ function Dashboard() {
   const fx = usdTo(def.currency);
   const toLocal = (usd: number) => usd * fx;
 
+  // Check active alerts against the latest snapshot and fire a local
+  // notification when a threshold is crossed. This only works while the app
+  // has been opened recently enough for a refresh to run — there's no
+  // server-side push infrastructure behind this (no persistence layer
+  // exists in this app), so it's not a true "notify me even when closed"
+  // push alert.
+  useEffect(() => {
+    if (typeof window === "undefined" || !("Notification" in window)) return;
+    if (Notification.permission !== "granted") return;
+    for (const alert of alerts) {
+      if (alert.firedAt) continue;
+      const resolved = resolveAsset(alert.assetKey, data, country, { toLocal, includeGST });
+      if (!resolved || resolved.price == null) continue;
+      const crossed =
+        alert.condition === "above" ? resolved.price >= alert.threshold : resolved.price <= alert.threshold;
+      if (!crossed) continue;
+      try {
+        navigator.serviceWorker?.ready.then((reg) => {
+          reg.showNotification(`${alert.label} ${alert.condition === "above" ? "crossed above" : "dropped below"} ${fmtCurrency(alert.threshold, alert.currency, { maximumFractionDigits: 2 })}`, {
+            body: `Now ${fmtCurrency(resolved.price!, resolved.currency, { maximumFractionDigits: 2 })}`,
+            icon: "/icons/icon-192.png",
+          });
+        }).catch(() => {
+          new Notification(`${alert.label} alert`, {
+            body: `Now ${fmtCurrency(resolved.price!, resolved.currency, { maximumFractionDigits: 2 })}`,
+          });
+        });
+      } catch {
+        // Notification dispatch failed — still mark fired so we don't retry forever
+      }
+      markFired(alert.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, alerts, country, includeGST]);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header fetchedAt={data.fetchedAt} locale={def.locale} showBackLink="resources" />
 
       <TodaySnapshot data={data} country={country} onJump={setSelectedAsset} />
+
+      <SearchAndAlerts
+        country={country}
+        data={data}
+        toLocal={toLocal}
+        includeGST={includeGST}
+        alerts={alerts}
+        onAddAlert={(a) => {
+          addAlert(a);
+          if ("Notification" in window && Notification.permission === "default") {
+            Notification.requestPermission();
+          }
+        }}
+        onRemoveAlert={removeAlert}
+        onJump={setSelectedAsset}
+      />
+
+      {pinned.length > 0 ? (
+        <PinnedBar pinned={pinned} data={data} country={country} toLocal={toLocal} includeGST={includeGST} onUnpin={togglePinned} onJump={setSelectedAsset} />
+      ) : null}
 
       <CountryTiles country={country} onChange={setCountry} />
 
@@ -165,6 +239,8 @@ function Dashboard() {
             onGSTChange={setIncludeGST}
             isLoading={isLoading}
             usdRates={data.rates.rates}
+            isPinned={isPinned}
+            onTogglePin={togglePinned}
           />
         )}
         {(!selectedAsset || selectedAsset === "crypto") && (
@@ -174,6 +250,8 @@ function Dashboard() {
             toLocal={toLocal}
             currency={def.currency}
             isLoading={isLoading}
+            isPinned={isPinned}
+            onTogglePin={togglePinned}
           />
         )}
         {(!selectedAsset || selectedAsset === "stocks") && (
@@ -182,6 +260,8 @@ function Dashboard() {
             quotes={data.quotes}
             basket={data.baskets[country] ?? []}
             isLoading={isLoading}
+            isPinned={isPinned}
+            onTogglePin={togglePinned}
           />
         )}
         {(!selectedAsset || selectedAsset === "crude") && (
@@ -200,6 +280,8 @@ function Dashboard() {
             base={def.currency}
             currency={def.currency}
             isLoading={isLoading}
+            isPinned={isPinned}
+            onTogglePin={togglePinned}
           />
         )}
 
@@ -370,6 +452,353 @@ function TodaySnapshot({
   );
 }
 
+/* ------------------------------- Favorite button ---------------------------- */
+
+function FavoriteButton({
+  pinned,
+  onToggle,
+  dark = false,
+}: {
+  pinned: boolean;
+  onToggle: () => void;
+  dark?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onToggle();
+      }}
+      aria-label={pinned ? "Remove from pinned" : "Add to pinned"}
+      aria-pressed={pinned}
+      className={cn(
+        "inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors",
+        dark
+          ? pinned
+            ? "text-amber-400"
+            : "text-white/50 hover:text-white/80"
+          : pinned
+            ? "text-amber-500"
+            : "text-muted-foreground hover:bg-surface-alt hover:text-foreground",
+      )}
+    >
+      <Star className={cn("h-4 w-4", pinned && (dark ? "fill-amber-400" : "fill-amber-500"))} />
+    </button>
+  );
+}
+
+/* --------------------------------- Pinned bar -------------------------------- */
+
+function PinnedBar({
+  pinned,
+  data,
+  country,
+  toLocal,
+  includeGST,
+  onUnpin,
+  onJump,
+}: {
+  pinned: string[];
+  data: MarketSnapshot;
+  country: CountryCode;
+  toLocal: (usd: number) => number;
+  includeGST: boolean;
+  onUnpin: (key: string) => void;
+  onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
+}) {
+  const scrollRef = useAutoScroll<HTMLDivElement>();
+
+  const resolved = pinned
+    .map((key) => resolveAsset(key, data, country, { toLocal, includeGST }))
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+
+  if (resolved.length === 0) return null;
+
+  return (
+    <div className="border-b border-border bg-card/50">
+      <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
+        <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+          <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
+          Pinned
+        </div>
+        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {resolved.map((r) => {
+            const up = r.changePercent >= 0;
+            return (
+              <div
+                key={r.key}
+                className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-1.5 text-xs font-medium shadow-sm"
+              >
+                <button type="button" onClick={() => onJump(r.assetFilter)} className="flex items-center gap-1.5">
+                  <span aria-hidden>{r.emoji}</span>
+                  <span className="text-foreground">{r.label}</span>
+                  {r.changePercent !== 0 ? (
+                    <span
+                      className="font-mono font-semibold"
+                      style={{ color: up ? "var(--positive)" : "var(--negative)" }}
+                    >
+                      {up ? "▲" : "▼"} {fmtNumber(Math.abs(r.changePercent), 1)}%
+                    </span>
+                  ) : null}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onUnpin(r.key)}
+                  aria-label={`Unpin ${r.label}`}
+                  className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ----------------------------- Search + Alerts bar --------------------------- */
+
+function SearchAndAlerts({
+  country,
+  data,
+  toLocal,
+  includeGST,
+  alerts,
+  onAddAlert,
+  onRemoveAlert,
+  onJump,
+}: {
+  country: CountryCode;
+  data: MarketSnapshot;
+  toLocal: (usd: number) => number;
+  includeGST: boolean;
+  alerts: PriceAlert[];
+  onAddAlert: (a: Omit<PriceAlert, "id" | "firedAt">) => void;
+  onRemoveAlert: (id: string) => void;
+  onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [focused, setFocused] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+
+  const index = useMemo(() => buildAssetIndex(country), [country]);
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (q.length < 1) return [];
+    return index.filter((a) => a.label.toLowerCase().includes(q)).slice(0, 8);
+  }, [query, index]);
+
+  const activeAlertCount = alerts.filter((a) => !a.firedAt).length;
+
+  const selectResult = (a: AssetRef) => {
+    setQuery("");
+    setFocused(false);
+    onJump(a.category);
+  };
+
+  return (
+    <div className="border-b border-border bg-background">
+      <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
+        <div className="relative flex-1">
+          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setTimeout(() => setFocused(false), 150)}
+            placeholder="Search gold, BTC, Nifty, EUR..."
+            className="h-10 pl-9"
+          />
+          {focused && results.length > 0 ? (
+            <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+              {results.map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  onMouseDown={() => selectResult(r)}
+                  className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-surface-alt"
+                >
+                  <span aria-hidden>{r.emoji}</span>
+                  <span className="text-foreground">{r.label}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{r.sub}</span>
+                </button>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <button
+          type="button"
+          onClick={() => setAlertsOpen(true)}
+          className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-surface-alt"
+          aria-label="Price alerts"
+        >
+          <Bell className="h-4 w-4" />
+          {activeAlertCount > 0 ? (
+            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--brand)] text-[9px] font-bold text-white">
+              {activeAlertCount}
+            </span>
+          ) : null}
+        </button>
+      </div>
+
+      <AlertsDialog
+        open={alertsOpen}
+        onOpenChange={setAlertsOpen}
+        country={country}
+        data={data}
+        toLocal={toLocal}
+        includeGST={includeGST}
+        alerts={alerts}
+        onAdd={onAddAlert}
+        onRemove={onRemoveAlert}
+      />
+    </div>
+  );
+}
+
+function AlertsDialog({
+  open,
+  onOpenChange,
+  country,
+  data,
+  toLocal,
+  includeGST,
+  alerts,
+  onAdd,
+  onRemove,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  country: CountryCode;
+  data: MarketSnapshot;
+  toLocal: (usd: number) => number;
+  includeGST: boolean;
+  alerts: PriceAlert[];
+  onAdd: (a: Omit<PriceAlert, "id" | "firedAt">) => void;
+  onRemove: (id: string) => void;
+}) {
+  const index = useMemo(() => buildAssetIndex(country), [country]);
+  const [assetKey, setAssetKey] = useState<string>(index[0]?.key ?? "");
+  const [condition, setCondition] = useState<"above" | "below">("above");
+  const [threshold, setThreshold] = useState("");
+
+  const selectedRef = index.find((a) => a.key === assetKey);
+  const resolved = selectedRef ? resolveAsset(assetKey, data, country, { toLocal, includeGST }) : null;
+
+  const submit = () => {
+    const num = Number(threshold);
+    if (!selectedRef || !Number.isFinite(num) || num <= 0) return;
+    onAdd({
+      assetKey,
+      label: selectedRef.label,
+      condition,
+      threshold: num,
+      currency: resolved?.currency ?? "",
+    });
+    setThreshold("");
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[85vh] max-w-md overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Price Alerts</DialogTitle>
+          <DialogDescription>
+            Local notifications only — these fire while you have this app open (or installed) recently
+            enough for it to refresh. There's no server sending these to you if the app has been fully
+            closed for a long time.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {alerts.length > 0 ? (
+            <div className="space-y-2">
+              {alerts.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-border bg-surface-alt px-3 py-2 text-sm"
+                >
+                  <span className={cn(a.firedAt && "text-muted-foreground line-through")}>
+                    {a.label} {a.condition === "above" ? "≥" : "≤"}{" "}
+                    {fmtCurrency(a.threshold, a.currency, { maximumFractionDigits: 2 })}
+                    {a.firedAt ? " · fired" : ""}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => onRemove(a.id)}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-background hover:text-foreground"
+                    aria-label={`Remove alert for ${a.label}`}
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">No alerts yet.</p>
+          )}
+
+          <div className="space-y-3 rounded-xl border border-border p-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Asset</Label>
+              <Select value={assetKey} onValueChange={setAssetKey}>
+                <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {index.map((a) => (
+                    <SelectItem key={a.key} value={a.key}>
+                      {a.emoji} {a.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {resolved?.price != null ? (
+                <p className="text-[11px] text-muted-foreground">
+                  Current: {fmtCurrency(resolved.price, resolved.currency, { maximumFractionDigits: 2 })}
+                </p>
+              ) : null}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Condition</Label>
+                <Select value={condition} onValueChange={(v) => setCondition(v as "above" | "below")}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="above">Goes above</SelectItem>
+                    <SelectItem value="below">Goes below</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Threshold</Label>
+                <Input
+                  type="number"
+                  inputMode="decimal"
+                  value={threshold}
+                  onChange={(e) => setThreshold(e.target.value)}
+                  placeholder="0.00"
+                  className="h-9"
+                />
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={submit}
+              className="flex w-full items-center justify-center gap-1.5 rounded-md bg-[color:var(--brand)] px-3 py-2 text-sm font-semibold text-white transition-opacity hover:opacity-90"
+            >
+              <Plus className="h-4 w-4" />
+              Add alert
+            </button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function CountryTiles({
   country,
   onChange,
@@ -440,7 +869,7 @@ function AssetTiles({
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div ref={scrollRef} className="grid grid-cols-5 gap-2 sm:gap-3">
+        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 sm:gap-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {assets.map((asset) => {
             const active = selectedAsset === asset.id;
             return (
@@ -451,7 +880,7 @@ function AssetTiles({
                 aria-pressed={active}
                 title={active ? `Showing ${asset.label} only — tap to show all` : `Show ${asset.label} only`}
                 className={cn(
-                  "flex flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition-colors sm:px-3 sm:py-3 sm:gap-1.5",
+                  "flex w-20 shrink-0 flex-col items-center gap-1 rounded-lg border px-1.5 py-2 text-center transition-colors sm:w-24 sm:gap-1.5 sm:px-3 sm:py-3",
                   active
                     ? "border-[color:var(--brand)] bg-[color:var(--brand)]/10 shadow-sm"
                     : "border-border bg-background hover:bg-surface-alt",
@@ -640,6 +1069,8 @@ function PreciousMetals({
   onGSTChange,
   isLoading,
   usdRates,
+  isPinned,
+  onTogglePin,
 }: {
   country: CountryCode;
   metals: MarketSnapshot["metals"];
@@ -651,6 +1082,8 @@ function PreciousMetals({
   onGSTChange: (v: boolean) => void;
   isLoading: boolean;
   usdRates: Record<string, number>;
+  isPinned: (key: string) => boolean;
+  onTogglePin: (key: string) => void;
 }) {
   const def = COUNTRIES[country];
   const premium = RETAIL_PREMIUM[country];
@@ -700,6 +1133,8 @@ function PreciousMetals({
             fx={fx}
             spotUsdOz={metals[m.code]}
             usdRates={usdRates}
+            isPinned={isPinned(`metals:${m.code}`)}
+            onTogglePin={() => onTogglePin(`metals:${m.code}`)}
           />
         ))}
       </div>
@@ -730,6 +1165,8 @@ function MetalRow({
   fx,
   spotUsdOz,
   usdRates,
+  isPinned,
+  onTogglePin,
 }: {
   metalCode: MetalCode;
   metalName: string;
@@ -742,6 +1179,8 @@ function MetalRow({
   fx: number;
   spotUsdOz: number;
   usdRates: Record<string, number>;
+  isPinned: boolean;
+  onTogglePin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const [historyKarat, setHistoryKarat] = useState<number | null>(null);
@@ -786,20 +1225,21 @@ function MetalRow({
   </div>
 
   <div className="flex items-center gap-1.5">
+    <FavoriteButton pinned={isPinned} onToggle={onTogglePin} />
     {isGold ? (
       <button
         onClick={() => setCalcOpen(true)}
-        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-alt"
+        className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt"
       >
-        <Calculator className="h-3 w-3" />
+        <Calculator className="h-3.5 w-3.5" />
         Duty calculator
       </button>
     ) : null}
      <button
             onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-surface-alt"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt"
           >
-            <LineChartIcon className="h-3 w-3" />
+            <LineChartIcon className="h-3.5 w-3.5" />
             5y history
           </button>
   </div>
@@ -956,12 +1396,16 @@ function CryptoSection({
   toLocal,
   currency,
   isLoading,
+  isPinned,
+  onTogglePin,
 }: {
   crypto: MarketSnapshot["crypto"];
   cryptoChange: MarketSnapshot["cryptoChange"];
   toLocal: (usd: number) => number;
   currency: string;
   isLoading: boolean;
+  isPinned: (key: string) => boolean;
+  onTogglePin: (key: string) => void;
 }) {
   if (isLoading) {
     return <SectionLoadingState type="crypto" />;
@@ -982,6 +1426,8 @@ function CryptoSection({
             change={cryptoChange[c.code]}
             currency={currency}
             toLocal={toLocal}
+            isPinned={isPinned(`crypto:${c.code}`)}
+            onTogglePin={() => onTogglePin(`crypto:${c.code}`)}
           />
 
         ))}
@@ -996,12 +1442,16 @@ function CryptoCard({
   change,
   currency,
   toLocal,
+  isPinned,
+  onTogglePin,
 }: {
   cryptoDef: { code: CryptoCode; name: string; yahoo: string; icon: string };
   price: number;
   change: { change: number; changePercent: number };
   currency: string;
   toLocal: (usd: number) => number;
+  isPinned: boolean;
+  onTogglePin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const valid = Number.isFinite(price) && price > 0;
@@ -1035,13 +1485,16 @@ function CryptoCard({
               </div>
             </div>
           </div>
-          <button
-            onClick={() => setOpen(true)}
-            className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:bg-surface-alt"
-          >
-            <LineChartIcon className="h-3 w-3" />
-            History
-          </button>
+          <div className="flex items-center gap-1">
+            <FavoriteButton pinned={isPinned} onToggle={onTogglePin} />
+            <button
+              onClick={() => setOpen(true)}
+              className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-surface-alt"
+            >
+              <LineChartIcon className="h-3.5 w-3.5" />
+              History
+            </button>
+          </div>
         </div>
 
         {valid ? (
@@ -1083,11 +1536,15 @@ function StockMarket({
   quotes,
   basket,
   isLoading,
+  isPinned,
+  onTogglePin,
 }: {
   country: CountryCode;
   quotes: MarketSnapshot["quotes"];
   basket: MarketSnapshot["quotes"];
   isLoading: boolean;
+  isPinned: (key: string) => boolean;
+  onTogglePin: (key: string) => void;
 }) {
   const def = COUNTRIES[country];
 
@@ -1134,7 +1591,14 @@ function StockMarket({
             Indices currently unavailable for {def.name}.
           </div>
         ) : (
-          localIndices.map((q) => <IndexCard key={q.ticker} quote={q} />)
+          localIndices.map((q) => (
+            <IndexCard
+              key={q.ticker}
+              quote={q}
+              isPinned={isPinned(`stocks:${q.ticker}`)}
+              onTogglePin={() => onTogglePin(`stocks:${q.ticker}`)}
+            />
+          ))
         )}
       </div>
 
@@ -1146,7 +1610,15 @@ function StockMarket({
   );
 }
 
-function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
+function IndexCard({
+  quote,
+  isPinned,
+  onTogglePin,
+}: {
+  quote: MarketSnapshot["quotes"][number];
+  isPinned: boolean;
+  onTogglePin: () => void;
+}) {
   const def = STOCKS[quote.ticker];
   const up = quote.change >= 0;
   const accent = up ? "var(--positive)" : "var(--negative)";
@@ -1155,14 +1627,17 @@ function IndexCard({ quote }: { quote: MarketSnapshot["quotes"][number] }) {
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-bold text-foreground">{def?.name ?? quote.ticker}</div>
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground hover:bg-surface-alt"
-        >
-          <LineChartIcon className="h-3 w-3" />
-          History
-        </button>
+        <div className="flex items-center gap-1">
+          <FavoriteButton pinned={isPinned} onToggle={onTogglePin} />
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-surface-alt"
+          >
+            <LineChartIcon className="h-3.5 w-3.5" />
+            History
+          </button>
+        </div>
       </div>
       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
         {def?.exchange}
@@ -1472,12 +1947,16 @@ function Currencies({
   base,
   currency,
   isLoading,
+  isPinned,
+  onTogglePin,
 }: {
   rates: Record<string, number>;
   ratesYesterday: Record<string, number>;
   base: string;
   currency: string;
   isLoading: boolean;
+  isPinned: (key: string) => boolean;
+  onTogglePin: (key: string) => void;
 }) {
   const baseRate = rates[base];
   const baseRateY = ratesYesterday[base];
@@ -1505,6 +1984,8 @@ function Currencies({
               baseRate={baseRate}
               rateY={ratesYesterday[ccy]}
               baseRateY={baseRateY}
+              isPinned={isPinned(`fx:${ccy}`)}
+              onTogglePin={() => onTogglePin(`fx:${ccy}`)}
             />
           ))}
         </div>
@@ -1521,6 +2002,8 @@ function CurrencyTile({
   baseRate,
   rateY,
   baseRateY,
+  isPinned,
+  onTogglePin,
 }: {
   base: string;
   ccy: string;
@@ -1528,6 +2011,8 @@ function CurrencyTile({
   baseRate: number;
   rateY?: number;
   baseRateY?: number;
+  isPinned: boolean;
+  onTogglePin: () => void;
 }) {
   const [open, setOpen] = useState(false);
   const perBase = rate / baseRate;
@@ -1553,9 +2038,12 @@ function CurrencyTile({
           <span>{ccy}</span>
           <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
         </button>
-        <span className="font-mono text-sm font-medium tabular text-white">
-          {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
-        </span>
+        <div className="flex items-center gap-1">
+          <FavoriteButton pinned={isPinned} onToggle={onTogglePin} dark />
+          <span className="font-mono text-sm font-medium tabular text-white">
+            {fmtNumber(perBase, perBase < 1 ? 4 : 2)}
+          </span>
+        </div>
       </div>
       <div className="text-[9px] text-white/40 truncate">{name}</div>
       {pct !== 0 ? (
