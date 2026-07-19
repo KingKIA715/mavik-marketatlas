@@ -142,4 +142,20 @@
 
   .no-scrollbar::-webkit-scrollbar { display: none; }
   .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+  /* Circular marquee: content is rendered twice back-to-back and animated
+     from -50% to 0%, so it loops seamlessly. Direction moves rightward on
+     screen — new items enter from the left as others exit to the right. */
+  @keyframes marquee-rightward {
+    from { transform: translateX(-50%); }
+    to { transform: translateX(0%); }
+  }
+  .animate-marquee {
+    animation-name: marquee-rightward;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .animate-marquee { animation: none; }
+  }
 }

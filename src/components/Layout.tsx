@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { triggerSync } from "@/lib/market.functions";
+import { toast } from "sonner";
 import { RefreshCw, Home, Calculator, ChevronLeft, ChevronRight } from "lucide-react";
 
 /* =====================================================================
@@ -107,6 +108,9 @@ export function SyncButton() {
       const res = await sync();
       if (res.ok) {
         await queryClient.invalidateQueries({ queryKey: ["market-snapshot"] });
+        if (res.throttled) {
+          toast("Prices already up to date — refreshed within the last hour.");
+        }
       }
     } catch {
       // ignore
@@ -239,11 +243,7 @@ interface FooterProps {
 }
 
 export function Footer({ sources }: FooterProps) {
-  const providers = sources
-    ? Array.from(
-        new Set([sources.metals, sources.crypto, sources.rates, sources.quotes, sources.crude].filter(Boolean)),
-      )
-    : [];
+  void sources; // kept for call-site compatibility; footer now shows a fixed provider list everywhere
 
   return (
     <footer className="mt-8 border-t border-border pt-5">
@@ -254,11 +254,9 @@ export function Footer({ sources }: FooterProps) {
         <div className="text-[10px]">
           Global financial hub for common people 🫂
         </div>
-        {providers.length > 0 ? (
-          <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
-            Data: {providers.join(" · ")}
-          </div>
-        ) : null}
+        <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
+          Data: MetalpriceAPI, Frankfurter, ExchangeRate-API, and Yahoo Finance
+        </div>
       </div>
     </footer>
   );

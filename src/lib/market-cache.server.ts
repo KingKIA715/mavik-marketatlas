@@ -39,3 +39,18 @@ export function clearCache(prefix?: string): number {
 
 export const ONE_HOUR = 60 * 60 * 1000;
 export const FIFTEEN_MIN = 15 * 60 * 1000;
+
+let lastForcedSyncAt = 0;
+
+/**
+ * Claims a forced-sync slot: returns true (and records "now") if it's been at
+ * least `minIntervalMs` since the last forced sync, false otherwise. Used so
+ * the manual refresh button can't clear the cache and hit every upstream API
+ * more than once per interval, no matter how often it's clicked.
+ */
+export function tryClaimForceSync(minIntervalMs: number): boolean {
+  const now = Date.now();
+  if (lastForcedSyncAt > 0 && now - lastForcedSyncAt < minIntervalMs) return false;
+  lastForcedSyncAt = now;
+  return true;
+}

@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { setResponseHeader } from "@tanstack/react-start/server";
-import { cached, clearCache, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
+import { cached, clearCache, tryClaimForceSync, ONE_HOUR, FIFTEEN_MIN } from "./market-cache.server";
 import {
   fetchMetals,
   fetchQuotes,
@@ -107,12 +107,17 @@ export const getMarketSnapshot = createServerFn({ method: "GET" }).handler(
 
 export const triggerSync = createServerFn({ method: "POST" }).handler(async () => {
   const startedAt = Date.now();
-  const cleared = clearCache();
+  // Only actually clear the cache and hit upstream APIs once per hour, no
+  // matter how many times this is called — prices that haven't changed in
+  // under an hour shouldn't burn API quota on every button press.
+  const allowed = tryClaimForceSync(ONE_HOUR);
+  const cleared = allowed ? clearCache() : 0;
   try {
     const snap = await getMarketSnapshot();
     return {
       ok: true as const,
       cleared,
+      throttled: !allowed,
       durationMs: Date.now() - startedAt,
       fetchedAt: snap.fetchedAt,
       sources: {
@@ -127,6 +132,7 @@ export const triggerSync = createServerFn({ method: "POST" }).handler(async () =
     return {
       ok: false as const,
       cleared,
+      throttled: !allowed,
       durationMs: Date.now() - startedAt,
       error: err instanceof Error ? err.message : String(err),
     };

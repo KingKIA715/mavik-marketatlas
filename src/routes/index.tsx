@@ -26,6 +26,7 @@ import {
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { useAutoScroll } from "@/lib/use-auto-scroll";
+import { MarqueeRow } from "@/components/MarqueeRow";
 import { usePinned, usePriceAlerts, type PriceAlert } from "@/lib/use-watchlist";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
@@ -75,7 +76,7 @@ import {
   CurrencyTileSkeleton,
   CryptoCardSkeleton,
 } from "@/components/SkeletonLoaders";
-import { Header, Footer, ScrollIndicator } from "@/components/Layout";
+import { Header, Footer } from "@/components/Layout";
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>, refetchIntervalMs: number | false = false) =>
   queryOptions({
@@ -243,6 +244,16 @@ function Dashboard() {
             onTogglePin={togglePinned}
           />
         )}
+        {(!selectedAsset || selectedAsset === "stocks") && (
+          <StockMarket
+            country={country}
+            quotes={data.quotes}
+            basket={data.baskets[country] ?? []}
+            isLoading={isLoading}
+            isPinned={isPinned}
+            onTogglePin={togglePinned}
+          />
+        )}
         {(!selectedAsset || selectedAsset === "crypto") && (
           <CryptoSection
             crypto={data.crypto}
@@ -254,11 +265,12 @@ function Dashboard() {
             onTogglePin={togglePinned}
           />
         )}
-        {(!selectedAsset || selectedAsset === "stocks") && (
-          <StockMarket
-            country={country}
-            quotes={data.quotes}
-            basket={data.baskets[country] ?? []}
+        {(!selectedAsset || selectedAsset === "fx") && (
+          <Currencies
+            rates={data.rates.rates}
+            ratesYesterday={data.ratesYesterday.rates}
+            base={def.currency}
+            currency={def.currency}
             isLoading={isLoading}
             isPinned={isPinned}
             onTogglePin={togglePinned}
@@ -271,17 +283,6 @@ function Dashboard() {
             toLocal={toLocal}
             currency={def.currency}
             isLoading={isLoading}
-          />
-        )}
-        {(!selectedAsset || selectedAsset === "fx") && (
-          <Currencies
-            rates={data.rates.rates}
-            ratesYesterday={data.ratesYesterday.rates}
-            base={def.currency}
-            currency={def.currency}
-            isLoading={isLoading}
-            isPinned={isPinned}
-            onTogglePin={togglePinned}
           />
         )}
 
@@ -325,7 +326,6 @@ function TodaySnapshot({
   onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
 }) {
   const def = COUNTRIES[country];
-  const scrollRef = useAutoScroll<HTMLDivElement>();
 
   const movers = useMemo<Mover[]>(() => {
     const pick = (candidates: Mover[]): Mover | null => {
@@ -425,12 +425,13 @@ function TodaySnapshot({
             {headline}
           </p>
         ) : null}
-        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {movers.map((m) => {
+        <MarqueeRow
+          items={movers}
+          keyOf={(m) => m.key}
+          renderItem={(m) => {
             const up = m.changePercent >= 0;
             return (
               <button
-                key={m.key}
                 type="button"
                 onClick={() => onJump(m.assetFilter)}
                 className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-surface-alt"
@@ -445,8 +446,8 @@ function TodaySnapshot({
                 </span>
               </button>
             );
-          })}
-        </div>
+          }}
+        />
       </div>
     </div>
   );
@@ -806,20 +807,18 @@ function CountryTiles({
   country: CountryCode;
   onChange: (c: CountryCode) => void;
 }) {
-  const scrollRef = useAutoScroll<HTMLDivElement>();
-
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div ref={scrollRef} className="relative flex gap-2 overflow-x-auto no-scrollbar sm:gap-3">
-          <ScrollIndicator />
-
-          {COUNTRY_ORDER.map((c) => {
+        <MarqueeRow
+          items={COUNTRY_ORDER}
+          keyOf={(c) => c}
+          secondsPerItem={2.5}
+          renderItem={(c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
             return (
               <button
-                key={c}
                 type="button"
                 onClick={() => onChange(c)}
                 className={cn(
@@ -838,8 +837,8 @@ function CountryTiles({
                 </span>
               </button>
             );
-          })}
-        </div>
+          }}
+        />
       </div>
     </div>
   );
@@ -858,10 +857,10 @@ function AssetTiles({
 }) {
   const assets = [
     { id: "metals", label: "Metals", icon: "🪙" },
-    { id: "crypto", label: "Crypto", icon: "₿" },
     { id: "stocks", label: "Stock Market", icon: "📈" },
-    { id: "crude", label: "Crude", icon: "🛢️" },
+    { id: "crypto", label: "Crypto", icon: "₿" },
     { id: "fx", label: "FX", icon: "💱" },
+    { id: "crude", label: "Crude", icon: "🛢️" },
   ];
 
   const scrollRef = useAutoScroll<HTMLDivElement>();
@@ -1229,18 +1228,22 @@ function MetalRow({
     {isGold ? (
       <button
         onClick={() => setCalcOpen(true)}
-        className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt"
+        aria-label="Gold duty calculator"
+        title="Gold duty calculator"
+        className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt sm:px-3"
       >
         <Calculator className="h-3.5 w-3.5" />
-        Duty calculator
+        <span className="hidden sm:inline">Duty calculator</span>
       </button>
     ) : null}
      <button
             onClick={() => setOpen(true)}
-            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt"
+            aria-label="5-year price history"
+            title="5-year price history"
+            className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt sm:px-3"
           >
             <LineChartIcon className="h-3.5 w-3.5" />
-            5y history
+            <span className="hidden sm:inline">5y history</span>
           </button>
   </div>
         </header>
