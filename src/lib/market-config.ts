@@ -363,44 +363,44 @@ export interface FuelReference {
  */
 export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
   IN: {
-    petrol: 100.5,
-    diesel: 92.5,
+    petrol: 102.5,
+    diesel: 95.5,
     lpgDomestic: { price: 855, unit: "14.2 kg cylinder" },
     lpgCommercial: { price: 1750, unit: "19 kg cylinder" },
   },
   US: {
-    petrol: 3.4,
-    diesel: 3.8,
+    petrol: 3.95,
+    diesel: 4.15,
     lpgDomestic: { price: 2.5, unit: "gallon" },
     lpgCommercial: { price: 2.2, unit: "gallon (bulk)" },
   },
   EU: {
-    petrol: 1.7,
-    diesel: 1.6,
+    petrol: 1.75,
+    diesel: 1.75,
     lpgDomestic: { price: 0.95, unit: "litre" },
     lpgCommercial: { price: 0.85, unit: "litre (bulk)" },
   },
   GB: {
-    petrol: 1.45,
-    diesel: 1.55,
+    petrol: 1.51,
+    diesel: 1.65,
     lpgDomestic: { price: 0.85, unit: "litre" },
     lpgCommercial: { price: 0.75, unit: "litre (bulk)" },
   },
   AE: {
-    petrol: 3.05,
-    diesel: 3.2,
+    petrol: 3.29,
+    diesel: 3.6,
     lpgDomestic: { price: 75, unit: "cylinder" },
     lpgCommercial: { price: 290, unit: "cylinder (bulk)" },
   },
   JP: {
-    petrol: 175,
-    diesel: 155,
+    petrol: 170,
+    diesel: 158,
     lpgDomestic: { price: 500, unit: "10 kg cylinder" },
     lpgCommercial: { price: 850, unit: "20 kg cylinder" },
   },
   CN: {
-    petrol: 8.2,
-    diesel: 7.5,
+    petrol: 7.8,
+    diesel: 7.1,
     lpgDomestic: { price: 110, unit: "14.5 kg cylinder" },
     lpgCommercial: { price: 220, unit: "30 kg cylinder" },
   },
@@ -409,14 +409,39 @@ export const FUEL_REFERENCE: Record<CountryCode, FuelReference> = {
 /**
  * Fuel spread multipliers — retail price = (crude price per litre/gallon) × spread.
  * These approximate refining, distribution, taxes, and dealer margins.
- * Updated to reflect current market dynamics (2024–2026).
+ *
+ * Recalibrated against real pump prices (see FUEL_REFERENCE above, sourced
+ * mid-to-late July 2026) divided by the crude cost per litre/gallon at a
+ * ~$65/barrel WTI reference — the trading range crude had been in for the
+ * preceding several weeks, i.e. the environment those retail prices were
+ * actually set under (WTI briefly spiked to the $80s on a fresh Iran/Hormuz
+ * flare-up right at calibration time; using that spike as the reference
+ * instead would have overstated every country's true tax/margin spread).
+ * The previous multipliers (~1.1–1.9) were calibrated too low across the
+ * board — see HANDOFF.md's "Fuel Cost calculator numbers run below
+ * real-world pump prices" note — largely because retail fuel tax is a much
+ * bigger share of the pump price than a ~1.1–1.9× multiplier implies,
+ * especially in heavily-taxed markets like the UK and EU.
+ *
+ * Two caveats worth knowing if these ever look off again: (1) the app only
+ * fetches WTI, not Brent — European/UK/Japanese pump prices are actually
+ * set off Brent-linked refined-product markets, which usually trade a few
+ * dollars above WTI, so this will systematically run a little low for
+ * those three when the WTI-Brent spread widens; (2) India's pump prices
+ * are administratively set by state oil companies and revised in infrequent
+ * jumps rather than tracking crude day-to-day, so on any day crude has
+ * moved a lot since India's last revision, the derived price will drift
+ * from the actual posted price until the next revision catches up.
+ * Neither is fixable without pulling in a Brent feed and a real India
+ * pump-price API — flagging as a known limitation rather than solving it
+ * here.
  */
 export const FUEL_SPREAD: Record<CountryCode, { petrol: number; diesel: number }> = {
-  IN: { petrol: 1.42, diesel: 1.32 },
-  US: { petrol: 1.48, diesel: 1.58 },
-  EU: { petrol: 1.85, diesel: 1.72 },
-  GB: { petrol: 1.78, diesel: 1.82 },
-  AE: { petrol: 1.12, diesel: 1.18 },
-  JP: { petrol: 1.65, diesel: 1.52 },
-  CN: { petrol: 1.38, diesel: 1.28 },
+  IN: { petrol: 2.98, diesel: 2.7 },
+  US: { petrol: 2.55, diesel: 2.65 },
+  EU: { petrol: 4.65, diesel: 4.65 },
+  GB: { petrol: 4.67, diesel: 5.11 },
+  AE: { petrol: 2.19, diesel: 2.4 },
+  JP: { petrol: 2.77, diesel: 2.58 },
+  CN: { petrol: 2.65, diesel: 2.41 },
 };

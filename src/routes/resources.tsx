@@ -77,24 +77,42 @@ export const Route = createFileRoute("/resources")({
 function ResourcesPage() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
-  const [activeTool, setActiveTool] = useState("sip");
+  const [activeGroup, setActiveGroup] = useState<"general" | "india" | "usa">("general");
+  const [activeTool, setActiveTool] = useState("lumpsum");
   const [toolsLocked, setToolsLocked] = useState(false);
-const tools = [
-  { id: "sip", label: "SIP", icon: TrendingUp },
-  { id: "stepup", label: "Step-up SIP", icon: ChevronsUp },
-  { id: "lumpsum", label: "Lumpsum", icon: PiggyBank },
-  { id: "fdrd", label: "FD/RD", icon: Banknote },
-  { id: "ppf", label: "PPF", icon: ShieldCheck },
-  { id: "mf", label: "Mutual Funds", icon: Search },
-  { id: "emi", label: "EMI", icon: Home },
-  { id: "mortgage", label: "Mortgage (US)", icon: Building2 },
-  { id: "401k", label: "401(k)", icon: Briefcase },
-  { id: "metal", label: "Gold/Silver", icon: Coins },
-  { id: "inflation", label: "Inflation", icon: Flame },
-  { id: "gst", label: "GST/VAT", icon: Percent },
-  { id: "fuel", label: "Fuel Cost", icon: Fuel },
-  { id: "fx", label: "Currency", icon: ArrowLeftRight },
+
+const TOOL_GROUPS: { id: "general" | "india" | "usa"; label: string }[] = [
+  { id: "general", label: "General" },
+  { id: "india", label: "India" },
+  { id: "usa", label: "USA" },
 ];
+
+const tools = [
+  { id: "lumpsum", label: "Lumpsum", icon: PiggyBank, group: "general" as const },
+  { id: "fdrd", label: "FD/RD", icon: Banknote, group: "general" as const },
+  { id: "emi", label: "EMI", icon: Home, group: "general" as const },
+  { id: "metal", label: "Gold/Silver", icon: Coins, group: "general" as const },
+  { id: "inflation", label: "Inflation", icon: Flame, group: "general" as const },
+  { id: "vat", label: "VAT", icon: Percent, group: "general" as const },
+  { id: "fuel", label: "Fuel Cost", icon: Fuel, group: "general" as const },
+  { id: "fx", label: "Currency", icon: ArrowLeftRight, group: "general" as const },
+  { id: "sip", label: "SIP", icon: TrendingUp, group: "india" as const },
+  { id: "stepup", label: "Step-up SIP", icon: ChevronsUp, group: "india" as const },
+  { id: "ppf", label: "PPF", icon: ShieldCheck, group: "india" as const },
+  { id: "mf", label: "Mutual Funds", icon: Search, group: "india" as const },
+  { id: "gst", label: "GST", icon: Percent, group: "india" as const },
+  { id: "mortgage", label: "Mortgage", icon: Building2, group: "usa" as const },
+  { id: "401k", label: "401(k)", icon: Briefcase, group: "usa" as const },
+];
+
+const groupTools = tools.filter((t) => t.group === activeGroup);
+
+const handleGroupChange = (g: "general" | "india" | "usa") => {
+  setActiveGroup(g);
+  setToolsLocked(false);
+  const first = tools.find((t) => t.group === g);
+  if (first) setActiveTool(first.id);
+};
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Header showBackLink="dashboard" />
@@ -110,10 +128,31 @@ const tools = [
         </div>
 
 <Tabs value={activeTool} onValueChange={setActiveTool} className="w-full">
+    <div className="mb-4 flex gap-2">
+      {TOOL_GROUPS.map((g) => {
+        const active = g.id === activeGroup;
+        return (
+          <button
+            key={g.id}
+            type="button"
+            onClick={() => handleGroupChange(g.id)}
+            aria-pressed={active}
+            className={cn(
+              "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
+              active
+                ? "border-[color:var(--brand)] bg-[color:var(--brand)] text-white shadow-sm"
+                : "border-border bg-background text-muted-foreground hover:bg-surface-alt hover:text-foreground",
+            )}
+          >
+            {g.label}
+          </button>
+        );
+      })}
+    </div>
     <div className="relative mb-6">
       <ScrollIndicator />
       <MarqueeRow
-        items={tools}
+        items={groupTools}
         keyOf={(t) => t.id}
         secondsPerItem={2.2}
         locked={toolsLocked}
@@ -176,6 +215,9 @@ const tools = [
           </TabsContent>
           <TabsContent value="gst">
             <GSTCalculator />
+          </TabsContent>
+          <TabsContent value="vat">
+            <VATCalculator />
           </TabsContent>
           <TabsContent value="fuel">
             <FuelCostCalculator data={data} />
@@ -770,14 +812,13 @@ function PPFCalculator() {
   );
 }
 
-/* -------------------------------- GST / VAT --------------------------------- */
+/* ----------------------------------- GST (India) ----------------------------------- */
 
 const GST_PRESETS = [
-  { id: "in5", label: "India · 5%", rate: 5 },
-  { id: "in12", label: "India · 12%", rate: 12 },
-  { id: "in18", label: "India · 18%", rate: 18 },
-  { id: "in28", label: "India · 28%", rate: 28 },
-  { id: "ae5", label: "UAE VAT · 5%", rate: 5 },
+  { id: "in5", label: "5%", rate: 5 },
+  { id: "in12", label: "12%", rate: 12 },
+  { id: "in18", label: "18%", rate: 18 },
+  { id: "in28", label: "28%", rate: 28 },
   { id: "custom", label: "Custom rate", rate: -1 },
 ];
 
@@ -786,7 +827,6 @@ function GSTCalculator() {
   const [amount, setAmount] = useState(10000);
   const [preset, setPreset] = useState("in18");
   const [customRate, setCustomRate] = useState(18);
-  const [currency, setCurrency] = useState("INR");
 
   const rate = preset === "custom" ? customRate : GST_PRESETS.find((p) => p.id === preset)?.rate ?? 18;
 
@@ -802,9 +842,9 @@ function GSTCalculator() {
 
   return (
     <Card>
-      <h2 className="text-lg font-semibold">GST / VAT Calculator</h2>
+      <h2 className="text-lg font-semibold">GST Calculator</h2>
       <p className="mt-1 text-sm text-muted-foreground">
-        Add GST to a base amount, or work out the base amount from a GST-inclusive price.
+        Add India GST to a base amount, or work out the base amount from a GST-inclusive price.
       </p>
       <Grid>
         <div className="mt-4 space-y-4">
@@ -825,7 +865,7 @@ function GSTCalculator() {
             min={0}
           />
           <div className="space-y-1.5">
-            <Label className="text-xs font-medium text-muted-foreground">GST / VAT slab</Label>
+            <Label className="text-xs font-medium text-muted-foreground">GST slab</Label>
             <Select value={preset} onValueChange={setPreset}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
@@ -838,11 +878,88 @@ function GSTCalculator() {
           {preset === "custom" ? (
             <Field label="Custom rate" value={customRate} onChange={setCustomRate} min={0} suffix="%" />
           ) : null}
+        </div>
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
+          <Stat label="Base amount" value={fmtCurrency(base, "INR", { maximumFractionDigits: 2 })} />
+          <Stat label={`GST (${fmtNumber(rate, 0)}%)`} value={fmtCurrency(gstAmount, "INR", { maximumFractionDigits: 2 })} />
+          <Stat label="Total" value={fmtCurrency(total, "INR", { maximumFractionDigits: 2 })} />
+        </div>
+      </Grid>
+    </Card>
+  );
+}
+
+/* ------------------------------------ VAT (General) --------------------------------- */
+
+const VAT_PRESETS = [
+  { id: "ae5", label: "UAE · 5%", rate: 5 },
+  { id: "gb20", label: "UK · 20%", rate: 20 },
+  { id: "eu19", label: "EU (DE) · 19%", rate: 19 },
+  { id: "custom", label: "Custom rate", rate: -1 },
+];
+
+function VATCalculator() {
+  const [direction, setDirection] = useState<"add" | "remove">("add");
+  const [amount, setAmount] = useState(10000);
+  const [preset, setPreset] = useState("ae5");
+  const [customRate, setCustomRate] = useState(5);
+  const [currency, setCurrency] = useState("AED");
+
+  const rate = preset === "custom" ? customRate : VAT_PRESETS.find((p) => p.id === preset)?.rate ?? 5;
+
+  const { base, vatAmount, total } = useMemo(() => {
+    if (direction === "add") {
+      const vatAmount = amount * (rate / 100);
+      return { base: amount, vatAmount, total: amount + vatAmount };
+    }
+    const base = amount / (1 + rate / 100);
+    const vatAmount = amount - base;
+    return { base, vatAmount, total: amount };
+  }, [amount, rate, direction]);
+
+  return (
+    <Card>
+      <h2 className="text-lg font-semibold">VAT Calculator</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Add VAT to a base amount, or work out the base amount from a VAT-inclusive price.
+      </p>
+      <Grid>
+        <div className="mt-4 space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">Direction</Label>
+            <Select value={direction} onValueChange={(v) => setDirection(v as "add" | "remove")}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="add">Add VAT to amount</SelectItem>
+                <SelectItem value="remove">Remove VAT (amount is inclusive)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Field
+            label={direction === "add" ? "Base amount" : "VAT-inclusive amount"}
+            value={amount}
+            onChange={setAmount}
+            min={0}
+          />
+          <div className="space-y-1.5">
+            <Label className="text-xs font-medium text-muted-foreground">VAT rate</Label>
+            <Select value={preset} onValueChange={setPreset}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {VAT_PRESETS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>{p.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {preset === "custom" ? (
+            <Field label="Custom rate" value={customRate} onChange={setCustomRate} min={0} suffix="%" />
+          ) : null}
           <CurrencyPicker value={currency} onChange={setCurrency} />
         </div>
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3 md:grid-cols-1">
           <Stat label="Base amount" value={fmtCurrency(base, currency, { maximumFractionDigits: 2 })} />
-          <Stat label={`GST (${fmtNumber(rate, 0)}%)`} value={fmtCurrency(gstAmount, currency, { maximumFractionDigits: 2 })} />
+          <Stat label={`VAT (${fmtNumber(rate, 0)}%)`} value={fmtCurrency(vatAmount, currency, { maximumFractionDigits: 2 })} />
           <Stat label="Total" value={fmtCurrency(total, currency, { maximumFractionDigits: 2 })} />
         </div>
       </Grid>

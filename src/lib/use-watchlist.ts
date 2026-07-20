@@ -111,3 +111,70 @@ export function usePriceAlerts() {
 
   return { alerts, add, remove, markFired };
 }
+
+/* --------------------------------- Portfolio ---------------------------------- */
+// "What I hold" — a lightweight, localStorage-only holdings list (grams of a
+// metal, units of a crypto). No accounts, no server-side storage, same as
+// pinned favorites and alerts above. Deliberately scoped to metals + crypto:
+// those are things a person actually holds a quantity of, unlike a stock
+// index (which isn't a single purchasable unit in this app) or crude oil.
+
+const PORTFOLIO_KEY = "marketatlas:portfolio";
+const PORTFOLIO_EVENT = "marketatlas:portfolio-changed";
+
+export interface Holding {
+  id: string;
+  assetKey: string; // "metals:XAU" | "crypto:BTC" etc — same "<category>:<id>" format as pinned/alerts
+  quantity: number; // grams for metals, coin units for crypto
+}
+
+function readHoldings(): Holding[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(PORTFOLIO_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeHoldings(holdings: Holding[]) {
+  try {
+    localStorage.setItem(PORTFOLIO_KEY, JSON.stringify(holdings));
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(PORTFOLIO_EVENT));
+}
+
+export function usePortfolio() {
+  const [holdings, setHoldings] = useState<Holding[]>([]);
+
+  useEffect(() => {
+    setHoldings(readHoldings());
+    const sync = () => setHoldings(readHoldings());
+    window.addEventListener(PORTFOLIO_EVENT, sync);
+    return () => window.removeEventListener(PORTFOLIO_EVENT, sync);
+  }, []);
+
+  const add = useCallback((assetKey: string, quantity: number) => {
+    const prev = readHoldings();
+    const existing = prev.find((h) => h.assetKey === assetKey);
+    const next = existing
+      ? prev.map((h) => (h.assetKey === assetKey ? { ...h, quantity: h.quantity + quantity } : h))
+      : [...prev, { id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`, assetKey, quantity }];
+    writeHoldings(next);
+  }, []);
+
+  const updateQuantity = useCallback((id: string, quantity: number) => {
+    const next = readHoldings().map((h) => (h.id === id ? { ...h, quantity } : h));
+    writeHoldings(next);
+  }, []);
+
+  const remove = useCallback((id: string) => {
+    writeHoldings(readHoldings().filter((h) => h.id !== id));
+  }, []);
+
+  return { holdings, add, updateQuantity, remove };
+}

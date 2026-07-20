@@ -25,10 +25,10 @@ import {
   type CryptoCode,
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
-import { useAutoScroll } from "@/lib/use-auto-scroll";
 import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
 import { usePinned, usePriceAlerts, type PriceAlert } from "@/lib/use-watchlist";
+import { PortfolioCard } from "@/components/PortfolioCard";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -214,6 +214,8 @@ function Dashboard() {
         suppressHydrationWarning
         className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
+        <PortfolioCard data={data} country={country} toLocal={toLocal} includeGST={includeGST} />
+
         {(!selectedAsset || selectedAsset === "metals") && (
           <PreciousMetals
             country={country}
@@ -499,7 +501,7 @@ function PinnedBar({
   onUnpin: (key: string) => void;
   onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
 }) {
-  const scrollRef = useAutoScroll<HTMLDivElement>();
+  const [locked, setLocked] = useState(false);
 
   const resolved = pinned
     .map((key) => resolveAsset(key, data, country, { toLocal, includeGST }))
@@ -514,15 +516,22 @@ function PinnedBar({
           <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
           Pinned
         </div>
-        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {resolved.map((r) => {
+        <MarqueeRow
+          items={resolved}
+          keyOf={(r) => r.key}
+          locked={locked}
+          renderItem={(r) => {
             const up = r.changePercent >= 0;
             return (
-              <div
-                key={r.key}
-                className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-1.5 text-xs font-medium shadow-sm"
-              >
-                <button type="button" onClick={() => onJump(r.assetFilter)} className="flex items-center gap-1.5">
+              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-1.5 text-xs font-medium shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setLocked(true);
+                    onJump(r.assetFilter);
+                  }}
+                  className="flex items-center gap-1.5"
+                >
                   <span aria-hidden>{r.emoji}</span>
                   <span className="text-foreground">{r.label}</span>
                   {r.changePercent !== 0 ? (
@@ -536,7 +545,10 @@ function PinnedBar({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onUnpin(r.key)}
+                  onClick={() => {
+                    setLocked(true);
+                    onUnpin(r.key);
+                  }}
                   aria-label={`Unpin ${r.label}`}
                   className="flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-alt hover:text-foreground"
                 >
@@ -544,8 +556,8 @@ function PinnedBar({
                 </button>
               </div>
             );
-          })}
-        </div>
+          }}
+        />
       </div>
     </div>
   );
