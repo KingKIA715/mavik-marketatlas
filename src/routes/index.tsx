@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
@@ -50,7 +50,6 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { HistoryDialog } from "@/components/HistoryDialog";
 import { GoldDutyCalculator } from "@/components/GoldDutyCalculator";
 import { MobileNav } from "@/components/MobileNav";
 import {
@@ -222,7 +221,6 @@ function Dashboard() {
             metals={data.metals}
             metalsChange={data.metalsChange}
             toLocal={toLocal}
-            fx={fx}
             currency={def.currency}
             includeGST={includeGST}
             onGSTChange={setIncludeGST}
@@ -1076,7 +1074,6 @@ function PreciousMetals({
   metals,
   metalsChange,
   toLocal,
-  fx,
   currency,
   includeGST,
   onGSTChange,
@@ -1089,7 +1086,6 @@ function PreciousMetals({
   metals: MarketSnapshot["metals"];
   metalsChange: MarketSnapshot["metalsChange"];
   toLocal: (usd: number) => number;
-  fx: number;
   currency: string;
   includeGST: boolean;
   onGSTChange: (v: boolean) => void;
@@ -1143,7 +1139,6 @@ function PreciousMetals({
             changePercent={metalsChange[m.code]?.changePercent ?? 0}
             currency={currency}
             country={country}
-            fx={fx}
             spotUsdOz={metals[m.code]}
             usdRates={usdRates}
             isPinned={isPinned(`metals:${m.code}`)}
@@ -1175,7 +1170,6 @@ function MetalRow({
   changePercent,
   currency,
   country,
-  fx,
   spotUsdOz,
   usdRates,
   isPinned,
@@ -1189,14 +1183,11 @@ function MetalRow({
   changePercent: number;
   currency: string;
   country: CountryCode;
-  fx: number;
   spotUsdOz: number;
   usdRates: Record<string, number>;
   isPinned: boolean;
   onTogglePin: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-  const [historyKarat, setHistoryKarat] = useState<number | null>(null);
   const [calcOpen, setCalcOpen] = useState(false);
   const def = COUNTRIES[country];
   const valid = Number.isFinite(perGram) && perGram > 0;
@@ -1250,15 +1241,16 @@ function MetalRow({
         <span className="hidden sm:inline">Duty calculator</span>
       </button>
     ) : null}
-     <button
-            onClick={() => setOpen(true)}
-            aria-label="5-year price history"
-            title="5-year price history"
+     <Link
+            to="/history/$symbol"
+            params={{ symbol: yahooSymbol }}
+            aria-label="Full price history"
+            title="Full price history"
             className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt sm:px-3"
           >
             <LineChartIcon className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">5y history</span>
-          </button>
+            <span className="hidden sm:inline">Full history</span>
+          </Link>
   </div>
         </header>
 
@@ -1279,14 +1271,6 @@ function MetalRow({
                       <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         {k}K Gold
                       </div>
-                      <button
-                        onClick={() => setHistoryKarat(k)}
-                        className="inline-flex items-center gap-1 rounded-md border border-border bg-background px-1.5 py-0.5 text-[10px] font-medium text-foreground transition-colors hover:bg-surface-alt"
-                        aria-label={`Show 5 year price history for ${k}K gold`}
-                      >
-                        <LineChartIcon className="h-2.5 w-2.5" />
-                        5y
-                      </button>
                     </div>
                     <div className="font-mono text-xl font-bold tabular text-foreground">
                       {fmtCurrency(display, currency, { maximumFractionDigits: 2 })}
@@ -1337,33 +1321,6 @@ function MetalRow({
         </div>
       </article>
 
-      <HistoryDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={metalName}
-        symbol={yahooSymbol}
-        currency={currency}
-        scale={(def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx)}
-        unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"}`}
-        tint={metalCode === "XAU" ? "#d97706" : metalCode === "XAG" ? "#64748b" : "#475569"}
-        alignMetal={metalCode}
-      />
-      {isGold && historyKarat !== null ? (
-        <HistoryDialog
-          open={historyKarat !== null}
-          onOpenChange={(o) => !o && setHistoryKarat(null)}
-          title={`${historyKarat}K Gold`}
-          symbol={yahooSymbol}
-          currency={currency}
-          scale={
-            (def.metalUnit === "gram" ? fx / GRAMS_PER_TROY_OUNCE : fx) *
-            (KARAT_PURITY[historyKarat] ?? 1)
-          }
-          unitLabel={`per ${def.metalUnit === "gram" ? "g" : "oz"} · ${historyKarat}K`}
-          tint="#d97706"
-          alignMetal="XAU"
-        />
-      ) : null}
       {isGold ? (
         <GoldDutyCalculator
           open={calcOpen}
@@ -1470,7 +1427,6 @@ function CryptoCard({
   isPinned: boolean;
   onTogglePin: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const valid = Number.isFinite(price) && price > 0;
 
   const CRYPTO_TINT: Record<CryptoCode, { bg: string; text: string; ring: string }> = {
@@ -1504,13 +1460,14 @@ function CryptoCard({
           </div>
           <div className="flex items-center gap-1">
             <FavoriteButton pinned={isPinned} onToggle={onTogglePin} />
-            <button
-              onClick={() => setOpen(true)}
+            <Link
+              to="/history/$symbol"
+              params={{ symbol: cryptoDef.yahoo }}
               className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-surface-alt"
             >
               <LineChartIcon className="h-3.5 w-3.5" />
               History
-            </button>
+            </Link>
           </div>
         </div>
 
@@ -1530,16 +1487,6 @@ function CryptoCard({
           <div className="mt-3 text-sm text-muted-foreground">Price unavailable</div>
         )}
       </article>
-
-      <HistoryDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={cryptoDef.name}
-        symbol={cryptoDef.yahoo}
-        currency={currency}
-        tint={cryptoDef.code === "BTC" ? "#f97316" : cryptoDef.code === "ETH" ? "#6366f1" : "#14b8a6"}
-        unitLabel={currency}
-      />
     </>
   );
 }
@@ -1639,21 +1586,20 @@ function IndexCard({
   const def = STOCKS[quote.ticker];
   const up = quote.change >= 0;
   const accent = up ? "var(--positive)" : "var(--negative)";
-  const [open, setOpen] = useState(false);
   return (
     <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
       <div className="flex items-baseline justify-between gap-2">
         <div className="text-sm font-bold text-foreground">{def?.name ?? quote.ticker}</div>
         <div className="flex items-center gap-1">
           <FavoriteButton pinned={isPinned} onToggle={onTogglePin} />
-          <button
-            type="button"
-            onClick={() => setOpen(true)}
+          <Link
+            to="/history/$symbol"
+            params={{ symbol: quote.ticker }}
             className="inline-flex min-h-9 items-center gap-1 rounded-md border border-border bg-background px-2 py-1.5 text-[11px] font-medium text-muted-foreground hover:bg-surface-alt"
           >
             <LineChartIcon className="h-3.5 w-3.5" />
             History
-          </button>
+          </Link>
         </div>
       </div>
       <div className="mt-0.5 text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -1669,14 +1615,6 @@ function IndexCard({
         {up ? "▲ +" : "▼ "}
         {fmtNumber(Math.abs(quote.change), 2)} · {fmtPct(quote.changePercent)}
       </div>
-      <HistoryDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={def?.name ?? quote.ticker}
-        symbol={quote.ticker}
-        tint={up ? "#16a34a" : "#dc2626"}
-        unitLabel={quote.currency}
-      />
     </div>
   );
 }
@@ -2031,7 +1969,6 @@ function CurrencyTile({
   isPinned: boolean;
   onTogglePin: () => void;
 }) {
-  const [open, setOpen] = useState(false);
   const perBase = rate / baseRate;
   const perBaseY = baseRateY && rateY ? rateY / baseRateY : NaN;
   const change = Number.isFinite(perBaseY) ? perBase - perBaseY : 0;
@@ -2045,16 +1982,16 @@ function CurrencyTile({
   return (
     <div className="flex flex-col gap-0.5 border-b border-white/10 pb-2">
       <div className="flex items-baseline justify-between">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
+        <Link
+          to="/history/$symbol"
+          params={{ symbol: `${base}${ccy}=X` }}
           className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-[0.15em] text-white/80 hover:text-white"
           title={`${base} → ${ccy} history`}
         >
           <span className="text-sm" aria-hidden>{flag}</span>
           <span>{ccy}</span>
           <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
-        </button>
+        </Link>
         <div className="flex items-center gap-1">
           <FavoriteButton pinned={isPinned} onToggle={onTogglePin} dark />
           <span className="font-mono text-sm font-medium tabular text-white">
@@ -2074,14 +2011,6 @@ function CurrencyTile({
       ) : (
         <div className="text-right font-mono text-[12px] text-white/75">— 24h</div>
       )}
-      <HistoryDialog
-        open={open}
-        onOpenChange={setOpen}
-        title={`${base} / ${ccy}`}
-        symbol={`${base}${ccy}=X`}
-        unitLabel={`${ccy} per 1 ${base}`}
-        tint={up ? "#16a34a" : "#dc2626"}
-      />
     </div>
   );
 }
