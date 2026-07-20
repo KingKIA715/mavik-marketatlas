@@ -26,6 +26,7 @@ import {
 } from "@/lib/market-config";
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { useAutoScroll } from "@/lib/use-auto-scroll";
+import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
 import { usePinned, usePriceAlerts, type PriceAlert } from "@/lib/use-watchlist";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
@@ -119,40 +120,25 @@ function Dashboard() {
   const hasActiveAlerts = alerts.some((a) => !a.firedAt);
   const { data, isLoading } = useSuspenseQuery(snapshotQuery(fetcher, hasActiveAlerts ? 5 * 60 * 1000 : false));
   const { pinned, toggle: togglePinned, isPinned } = usePinned();
-  const [country, setCountry] = useState<CountryCode>("IN");
+  // Shared across pages (dashboard <-> news) via localStorage — see
+  // use-selected-country.ts. Falls back to a locale/timezone guess rather
+  // than always opening on India when nothing's been picked or stored yet.
+  const [country, setCountry] = useSelectedCountry({
+    fallback: "IN",
+    guess: () => {
+      try {
+        const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+        const lang = (navigator.language || "").toLowerCase();
+        if (tz.startsWith("America/") || lang.endsWith("-us")) return "US";
+        if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta" || lang.endsWith("-in")) return "IN";
+      } catch {
+        // Intl/navigator unavailable — keep the default.
+      }
+      return null;
+    },
+  });
   const [selectedAsset, setSelectedAsset] = useState<"metals" | "crypto" | "stocks" | "crude" | "fx" | null>(null);
   const [includeGST, setIncludeGST] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const p = params.get("country")?.toUpperCase();
-    if (p && p in COUNTRIES) {
-      if (p !== country) setCountry(p as CountryCode);
-      return;
-    }
-    // No explicit ?country= — guess a sensible default from the visitor's locale/timezone
-    // rather than always opening on India.
-    try {
-      const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "";
-      const lang = (navigator.language || "").toLowerCase();
-      let guess: CountryCode | null = null;
-      if (tz.startsWith("America/") || lang.endsWith("-us")) guess = "US";
-      else if (tz === "Asia/Kolkata" || tz === "Asia/Calcutta" || lang.endsWith("-in")) guess = "IN";
-      if (guess && guess !== country) setCountry(guess);
-    } catch {
-      // Intl/navigator unavailable — keep the default.
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("country") !== country) {
-      url.searchParams.set("country", country);
-      window.history.replaceState({}, "", url.toString());
-    }
-  }, [country]);
 
   const def = COUNTRIES[country];
   const usdTo = (ccy: string) => data.rates.rates[ccy] ?? NaN;
@@ -326,6 +312,7 @@ function TodaySnapshot({
   onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
 }) {
   const def = COUNTRIES[country];
+  const [locked, setLocked] = useState(false);
 
   const movers = useMemo<Mover[]>(() => {
     const pick = (candidates: Mover[]): Mover | null => {
@@ -428,12 +415,16 @@ function TodaySnapshot({
         <MarqueeRow
           items={movers}
           keyOf={(m) => m.key}
+          locked={locked}
           renderItem={(m) => {
             const up = m.changePercent >= 0;
             return (
               <button
                 type="button"
-                onClick={() => onJump(m.assetFilter)}
+                onClick={() => {
+                  setLocked(true);
+                  onJump(m.assetFilter);
+                }}
                 className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-medium shadow-sm transition-colors hover:bg-surface-alt"
               >
                 <span aria-hidden>{m.emoji}</span>
@@ -807,6 +798,7 @@ function CountryTiles({
   country: CountryCode;
   onChange: (c: CountryCode) => void;
 }) {
+  const [locked, setLocked] = useState(false);
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
@@ -814,13 +806,17 @@ function CountryTiles({
           items={COUNTRY_ORDER}
           keyOf={(c) => c}
           secondsPerItem={2.5}
+          locked={locked}
           renderItem={(c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
             return (
               <button
                 type="button"
-                onClick={() => onChange(c)}
+                onClick={() => {
+                  setLocked(true);
+                  onChange(c);
+                }}
                 className={cn(
                   "flex shrink-0 flex-col items-center gap-0.5 rounded-lg border px-2 py-1.5 text-center transition-colors min-w-[68px] sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:gap-1",
                   active
@@ -863,19 +859,25 @@ function AssetTiles({
     { id: "crude", label: "Crude", icon: "🛢️" },
   ];
 
-  const scrollRef = useAutoScroll<HTMLDivElement>();
+  const [locked, setLocked] = useState(false);
 
   return (
     <div className="border-b border-border bg-card/50">
       <div className="mx-auto max-w-6xl px-3 py-3 sm:px-6 sm:py-4">
-        <div ref={scrollRef} className="flex gap-2 overflow-x-auto pb-1 sm:gap-3 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {assets.map((asset) => {
+        <MarqueeRow
+          items={assets}
+          keyOf={(a) => a.id}
+          secondsPerItem={2.5}
+          locked={locked}
+          renderItem={(asset) => {
             const active = selectedAsset === asset.id;
             return (
               <button
-                key={asset.id}
                 type="button"
-                onClick={() => onChange(active ? null : (asset.id as any))}
+                onClick={() => {
+                  setLocked(true);
+                  onChange(active ? null : (asset.id as any));
+                }}
                 aria-pressed={active}
                 title={active ? `Showing ${asset.label} only — tap to show all` : `Show ${asset.label} only`}
                 className={cn(
@@ -891,8 +893,8 @@ function AssetTiles({
                 </span>
               </button>
             );
-          })}
-        </div>
+          }}
+        />
         {selectedAsset ? (
           <button
             type="button"

@@ -3,6 +3,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { getNews } from "@/lib/market.functions";
 import { COUNTRIES, COUNTRY_ORDER, type CountryCode } from "@/lib/market-config";
+import { useSelectedCountry } from "@/lib/use-selected-country";
 import { Header, Footer } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
 import { Newspaper, ExternalLink } from "lucide-react";
@@ -36,18 +37,14 @@ function timeAgo(pubDate: string): string {
 
 function NewsPage() {
   const fetcher = useServerFn(getNews);
-  const [country, setCountry] = useState<CountryCode>("IN");
+  // Shared with the dashboard via localStorage — picking a country there
+  // keeps it selected here too. A `?country=` URL param still wins on
+  // first load for shareable links.
+  const [country, setCountry] = useSelectedCountry({ fallback: "IN" });
   const [items, setItems] = useState<{ title: string; link: string; pubDate: string }[]>([]);
   const [source, setSource] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const params = new URLSearchParams(window.location.search);
-    const p = params.get("country")?.toUpperCase();
-    if (p && p in COUNTRIES) setCountry(p as CountryCode);
-  }, []);
 
   useEffect(() => {
     let cancelled = false;

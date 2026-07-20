@@ -3,7 +3,7 @@ import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState } from "react";
 import { getMarketSnapshot, searchMutualFunds, getMutualFundNav, type MarketSnapshot } from "@/lib/market.functions";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -40,7 +40,8 @@ import {
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
-import { useAutoScroll } from "@/lib/use-auto-scroll";
+import { MarqueeRow } from "@/components/MarqueeRow";
+import { cn } from "@/lib/utils";
 
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -76,7 +77,8 @@ export const Route = createFileRoute("/resources")({
 function ResourcesPage() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
-  const scrollRef = useAutoScroll<HTMLDivElement>();
+  const [activeTool, setActiveTool] = useState("sip");
+  const [toolsLocked, setToolsLocked] = useState(false);
 const tools = [
   { id: "sip", label: "SIP", icon: TrendingUp },
   { id: "stepup", label: "Step-up SIP", icon: ChevronsUp },
@@ -107,24 +109,38 @@ const tools = [
           </p>
         </div>
 
-<Tabs defaultValue="sip" className="w-full">
-    <TabsList ref={scrollRef} className="relative mb-6 flex h-auto w-full gap-2 overflow-x-auto bg-transparent p-0 pb-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-    <ScrollIndicator />
-    {tools.map((t) => {
-      const Icon = t.icon;
-      return (
-        <TabsTrigger
-          key={t.id}
-          value={t.id}
-          className="flex h-auto shrink-0 flex-col items-center gap-1 rounded-lg border border-border bg-background px-2 py-2 text-center text-[10px] font-semibold text-foreground transition-colors hover:bg-surface-alt min-w-[72px] whitespace-normal data-[state=active]:border-[color:var(--brand)] data-[state=active]:bg-[color:var(--brand)]/10 data-[state=active]:text-[color:var(--brand)] data-[state=active]:shadow-sm sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:text-[11px]"
-        >
-          <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-          <span>{t.label}</span>
-        </TabsTrigger>
-      );
-    })}
-  </TabsList>
-               
+<Tabs value={activeTool} onValueChange={setActiveTool} className="w-full">
+    <div className="relative mb-6">
+      <ScrollIndicator />
+      <MarqueeRow
+        items={tools}
+        keyOf={(t) => t.id}
+        secondsPerItem={2.2}
+        locked={toolsLocked}
+        renderItem={(t) => {
+          const Icon = t.icon;
+          const active = t.id === activeTool;
+          return (
+            <button
+              type="button"
+              onClick={() => {
+                setToolsLocked(true);
+                setActiveTool(t.id);
+              }}
+              aria-pressed={active}
+              className={cn(
+                "flex h-auto shrink-0 flex-col items-center gap-1 rounded-lg border border-border bg-background px-2 py-2 text-center text-[10px] font-semibold text-foreground transition-colors hover:bg-surface-alt min-w-[72px] whitespace-normal sm:min-w-[92px] sm:px-4 sm:py-2.5 sm:text-[11px]",
+                active && "border-[color:var(--brand)] bg-[color:var(--brand)]/10 text-[color:var(--brand)] shadow-sm",
+              )}
+            >
+              <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
+              <span>{t.label}</span>
+            </button>
+          );
+        }}
+      />
+    </div>
+
         <TabsContent value="sip">
             <SIPCalculator />
           </TabsContent>

@@ -452,19 +452,52 @@ export async function fetchMFNav(schemeCode: number): Promise<{ data: MFNav | nu
 // Country-scoped financial headlines via free public RSS feeds — no API key,
 // no rate limits. A lightweight regex-based RSS 2.0 parser avoids pulling in
 // an XML dependency for what is a handful of well-formed <item> blocks.
+//
+// Each country now has its own ordered list of feeds — tried in turn until
+// one returns items — following the same fallback-chain pattern already
+// used for metals/FX above. This does two things: (1) gives GB/EU/AE/JP/CN
+// a genuinely country-specific primary source instead of all five sharing
+// one identical BBC feed, and (2) makes every country more resilient to a
+// single feed going stale or rate-limiting us, not just the ones that used
+// to share BBC. BBC Business stays in the chain as a fallback for GB/EU/AE
+// /JP/CN since it's already confirmed working in this app and is at least
+// broadly international.
+//
+// As with every free third-party integration in this app (see HANDOFF.md
+// §4/§7), these URLs are the result of research, not a live-network
+// verification pass — confirm they're still resolving after deploy.
 
 import type { CountryCode } from "./market-config";
 
-const NEWS_FEEDS: Record<CountryCode, { url: string; label: string }> = {
-  IN: { url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", label: "Economic Times Markets" },
-  US: { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
-  GB: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
-  // No verified country-specific free feed found for these — BBC Business gives
-  // broader international coverage than the US-centric Yahoo feed used previously.
-  EU: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
-  AE: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
-  JP: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
-  CN: { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+const NEWS_FEEDS: Record<CountryCode, { url: string; label: string }[]> = {
+  IN: [
+    { url: "https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms", label: "Economic Times Markets" },
+    { url: "https://www.moneycontrol.com/rss/MCtopnews.xml", label: "Moneycontrol" },
+  ],
+  US: [
+    { url: "https://finance.yahoo.com/news/rssindex", label: "Yahoo Finance" },
+    { url: "https://www.investing.com/rss/news.rss", label: "Investing.com" },
+  ],
+  GB: [
+    { url: "https://www.theguardian.com/uk/business/rss", label: "The Guardian — Business" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  ],
+  EU: [
+    { url: "https://rss.dw.com/rdf/rss-en-bus", label: "DW — Business" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  ],
+  AE: [
+    { url: "https://www.aljazeera.com/xml/rss/economy.xml", label: "Al Jazeera — Economy" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  ],
+  JP: [
+    { url: "https://www.japantimes.co.jp/feed/", label: "The Japan Times" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  ],
+  CN: [
+    { url: "https://www.scmp.com/rss/92/feed", label: "South China Morning Post — Business" },
+    { url: "https://feeds.bbci.co.uk/news/business/rss.xml", label: "BBC Business" },
+  ],
 };
 
 export interface NewsItem {
@@ -504,21 +537,30 @@ function parseRSS(xml: string, limit = 8): NewsItem[] {
   return items;
 }
 
-export async function fetchNews(country: CountryCode): Promise<{ data: NewsItem[]; source: string }> {
-  const feed = NEWS_FEEDS[country] ?? NEWS_FEEDS.US;
-  try {
-    const xml = await withRetry("news", async () => {
+async function fetchOneFeed(feed: { url: string; label: string }): Promise<NewsItem[]> {
+  const xml = await withRetry(
+    `news:${feed.label}`,
+    async () => {
       const r = await fetch(feed.url, {
         headers: { accept: "application/rss+xml, application/xml, text/xml, */*" },
       });
       if (!r.ok) throw new Error(`news feed ${r.status}`);
       return r.text();
-    });
-    const items = parseRSS(xml, 8);
-    if (items.length === 0) return { data: [], source: "unavailable" };
-    return { data: items, source: feed.label };
-  } catch (e) {
-    console.warn(`[news:${country}] failed:`, e);
-    return { data: [], source: "unavailable" };
+    },
+    { tries: 2, baseMs: 200 },
+  );
+  return parseRSS(xml, 8);
+}
+
+export async function fetchNews(country: CountryCode): Promise<{ data: NewsItem[]; source: string }> {
+  const feeds = NEWS_FEEDS[country] ?? NEWS_FEEDS.US;
+  for (const feed of feeds) {
+    try {
+      const items = await fetchOneFeed(feed);
+      if (items.length > 0) return { data: items, source: feed.label };
+    } catch (e) {
+      console.warn(`[news:${country}] "${feed.label}" failed:`, e);
+    }
   }
+  return { data: [], source: "unavailable" };
 }
