@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { triggerSync } from "@/lib/market.functions";
 import { toast } from "sonner";
 import { RefreshCw, Home, Calculator, ChevronLeft, ChevronRight } from "lucide-react";
+import { useTranslation, LANGUAGES, type LanguageCode } from "@/lib/i18n";
 
 /* =====================================================================
  * SCROLL INDICATOR
@@ -148,6 +149,27 @@ interface HeaderProps {
   subtitle?: string;
 }
 
+function LanguageSwitcher() {
+  const { t, language, setLanguage } = useTranslation();
+  return (
+    <label className="relative inline-flex h-9 items-center">
+      <span className="sr-only">{t("language.label")}</span>
+      <select
+        value={language}
+        onChange={(e) => setLanguage(e.target.value as LanguageCode)}
+        aria-label={t("language.label")}
+        className="h-9 rounded-md border border-white/20 bg-white/5 px-2 text-xs font-medium text-white [color-scheme:dark] hover:bg-white/10"
+      >
+        {LANGUAGES.map((l) => (
+          <option key={l.code} value={l.code} className="text-foreground">
+            {l.nativeLabel}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
 export function Header({ fetchedAt, locale, showBackLink, subtitle = "Resources" }: HeaderProps) {
   return (
     <header className="border-b border-border bg-slate-900 text-white">
@@ -176,6 +198,7 @@ export function Header({ fetchedAt, locale, showBackLink, subtitle = "Resources"
                 <Home className="h-4 w-4" />
               </Link>
             ) : null}
+            <LanguageSwitcher />
             <ThemeToggle className="h-9 w-9 rounded-md border-white/20 bg-white/5 text-white hover:bg-white/10" />
             <SyncButton />
           </div>
@@ -244,6 +267,7 @@ interface FooterProps {
 
 export function Footer({ sources }: FooterProps) {
   void sources; // kept for call-site compatibility; footer now shows a fixed provider list everywhere
+  const { t } = useTranslation();
 
   const flagshipHistory: { label: string; symbol: string }[] = [
     { label: "Gold price history", symbol: "GC=F" },
@@ -270,7 +294,7 @@ export function Footer({ sources }: FooterProps) {
           © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>
         </div>
         <div className="text-[10px]">
-          Global financial hub for common people 🫂
+          {t("footer.tagline")}
         </div>
         <div className="pt-1 font-mono text-[10px] text-muted-foreground/80">
           Data: MetalpriceAPI, Frankfurter, ExchangeRate-API, and Yahoo Finance

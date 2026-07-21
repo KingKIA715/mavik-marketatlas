@@ -4,6 +4,8 @@ import type { MarketSnapshot } from "@/lib/market.functions";
 import { resolveAsset } from "@/lib/asset-resolver";
 import { METALS, CRYPTOS, type CountryCode, COUNTRIES } from "@/lib/market-config";
 import { usePortfolio } from "@/lib/use-watchlist";
+import { useTranslation } from "@/lib/i18n";
+import { PortfolioHistoryChart } from "@/components/PortfolioHistoryChart";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -31,6 +33,7 @@ export function PortfolioCard({
   includeGST: boolean;
 }) {
   const { holdings, add, updateQuantity, remove } = usePortfolio();
+  const { t } = useTranslation();
   const def = COUNTRIES[country];
   const [adding, setAdding] = useState(false);
   const [newAsset, setNewAsset] = useState(HOLDABLE_ASSETS[0].assetKey);
@@ -56,7 +59,7 @@ export function PortfolioCard({
           className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-card/50 px-4 py-4 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground"
         >
           <Briefcase className="h-4 w-4" />
-          Track what you hold — add gold, silver, or crypto
+          {t("portfolio.trackPrompt")}
         </button>
       </section>
     );
@@ -67,7 +70,7 @@ export function PortfolioCard({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Briefcase className="h-4 w-4 text-muted-foreground" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Holdings</h2>
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{t("portfolio.title")}</h2>
         </div>
         {rows.length > 0 ? (
           <div className="text-right">
@@ -123,6 +126,10 @@ export function PortfolioCard({
             </div>
           ))}
         </div>
+      ) : null}
+
+      {holdings.length > 0 ? (
+        <PortfolioHistoryChart holdings={holdings} currency={def.currency} fxToLocal={toLocal} />
       ) : null}
 
       {adding ? (
@@ -191,12 +198,12 @@ export function PortfolioCard({
           className="mt-3 flex items-center gap-1.5 text-sm font-medium text-[color:var(--brand)] hover:underline"
         >
           <Plus className="h-3.5 w-3.5" />
-          Add holding
+          {t("portfolio.addHolding")}
         </button>
       )}
 
       <p className="mt-3 text-[11px] text-muted-foreground">
-        Saved on this device only — no account, nothing sent anywhere. Change % is today's market move, not your gain/loss since purchase.
+        {t("portfolio.disclaimer")} {t("portfolio.changeDisclaimer")}
       </p>
     </section>
   );

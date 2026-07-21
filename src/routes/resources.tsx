@@ -92,14 +92,15 @@ export const Route = createFileRoute("/resources")({
 function ResourcesPage() {
   const fetcher = useServerFn(getMarketSnapshot);
   const { data } = useSuspenseQuery(snapshotQuery(fetcher));
+  const { t } = useTranslation();
   const [activeGroup, setActiveGroup] = useState<"general" | "india" | "usa">("general");
   const [activeTool, setActiveTool] = useState("lumpsum");
   const [toolsLocked, setToolsLocked] = useState(false);
 
 const TOOL_GROUPS: { id: "general" | "india" | "usa"; label: string }[] = [
-  { id: "general", label: "General" },
-  { id: "india", label: "India" },
-  { id: "usa", label: "USA" },
+  { id: "general", label: t("resources.group.general") },
+  { id: "india", label: t("resources.group.india") },
+  { id: "usa", label: t("resources.group.usa") },
 ];
 
 const tools = [

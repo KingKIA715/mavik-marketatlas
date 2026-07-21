@@ -28,6 +28,7 @@ import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/
 import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
 import { usePinned, usePriceAlerts, useRecentSearches, type PriceAlert } from "@/lib/use-watchlist";
+import { useTranslation } from "@/lib/i18n";
 import { PortfolioCard } from "@/components/PortfolioCard";
 import { fuzzyScore } from "@/lib/fuzzy-search";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
@@ -502,6 +503,7 @@ function PinnedBar({
   onJump: (asset: "metals" | "crypto" | "stocks" | "crude" | "fx") => void;
 }) {
   const [locked, setLocked] = useState(false);
+  const { t } = useTranslation();
 
   const resolved = pinned
     .map((key) => resolveAsset(key, data, country, { toLocal, includeGST }))
@@ -514,7 +516,7 @@ function PinnedBar({
       <div className="mx-auto max-w-6xl px-4 py-3 sm:px-6">
         <div className="mb-2 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
           <Star className="h-3.5 w-3.5 fill-amber-500 text-amber-500" />
-          Pinned
+          {t("pinned.title")}
         </div>
         <MarqueeRow
           items={resolved}
@@ -589,6 +591,7 @@ function SearchAndAlerts({
   const [focused, setFocused] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
   const { recents, add: addRecent } = useRecentSearches();
+  const { t } = useTranslation();
 
   const index = useMemo(() => buildAssetIndex(country), [country]);
   const results = useMemo(() => {
@@ -630,7 +633,7 @@ function SearchAndAlerts({
                 setFocused(false);
               }
             }}
-            placeholder="Search gold, BTC, Nifty, EUR..."
+            placeholder={t("search.placeholder")}
             className="h-10 pl-9"
             role="combobox"
             aria-expanded={showRecents || showResults}
@@ -682,7 +685,7 @@ function SearchAndAlerts({
           type="button"
           onClick={() => setAlertsOpen(true)}
           className="relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border bg-card text-foreground transition-colors hover:bg-surface-alt"
-          aria-label="Price alerts"
+          aria-label={t("search.alerts")}
         >
           <Bell className="h-4 w-4" />
           {activeAlertCount > 0 ? (
@@ -1142,6 +1145,7 @@ function PreciousMetals({
   isPinned: (key: string) => boolean;
   onTogglePin: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const def = COUNTRIES[country];
   const premium = RETAIL_PREMIUM[country];
   const gstMul = country === "IN" && includeGST ? 1 + INDIA_GST : 1;
@@ -1160,7 +1164,7 @@ function PreciousMetals({
   return (
     <section>
       <SectionHeader
-        title="Precious Metals"
+        title={t("section.metals")}
         hint={`Live spot prices · ${def.currency} · ${
           premium ? "incl. import duty" : "global spot"
         }${country === "IN" && includeGST ? " + 3% GST" : ""}`}
@@ -1429,6 +1433,7 @@ function CryptoSection({
   isPinned: (key: string) => boolean;
   onTogglePin: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   if (isLoading) {
     return <SectionLoadingState type="crypto" />;
   }
@@ -1436,7 +1441,7 @@ function CryptoSection({
   return (
     <section>
       <SectionHeader
-        title="Cryptocurrency"
+        title={t("section.crypto")}
         hint={`Live prices · ${currency} · 24h change`}
       />
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
@@ -1558,6 +1563,7 @@ function StockMarket({
   isPinned: (key: string) => boolean;
   onTogglePin: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const def = COUNTRIES[country];
 
   const localIndices = useMemo(
@@ -1593,7 +1599,7 @@ function StockMarket({
   return (
     <section>
       <SectionHeader
-        title="Stock Market"
+        title={t("section.stocks")}
         hint={`${def.flag} ${def.name} · indices and large-cap movers`}
       />
 
@@ -1738,6 +1744,7 @@ function Gasoline({
   currency: string;
   isLoading: boolean;
 }) {
+  const { t } = useTranslation();
   const def = COUNTRIES[country];
   const fuel = FUEL_REFERENCE[country];
   const crudeLocal = toLocal(crude.pricePerBarrelUSD);
@@ -1769,7 +1776,7 @@ function Gasoline({
   return (
     <section>
       <SectionHeader
-        title="Gasoline & Fuel"
+        title={t("section.fuel")}
         hint={`Live crude oil + indicative retail prices in ${def.name}`}
       />
 
@@ -1890,6 +1897,7 @@ function FuelTile({
 /* --------------------------------- News Teaser ------------------------------ */
 
 function NewsTeaser({ country }: { country: CountryCode }) {
+  const { t } = useTranslation();
   const fetcher = useServerFn(getNews);
   const [items, setItems] = useState<{ title: string; link: string; pubDate: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1916,7 +1924,7 @@ function NewsTeaser({ country }: { country: CountryCode }) {
 
   return (
     <section>
-      <SectionHeader title="Financial News" hint={`${COUNTRIES[country].flag} ${COUNTRIES[country].name} headlines`}>
+      <SectionHeader title={t("section.news")} hint={`${COUNTRIES[country].flag} ${COUNTRIES[country].name} headlines`}>
         <a
           href={`/news?country=${country}`}
           className="text-xs font-medium text-[color:var(--brand)] hover:underline"
@@ -1961,6 +1969,7 @@ function Currencies({
   isPinned: (key: string) => boolean;
   onTogglePin: (key: string) => void;
 }) {
+  const { t } = useTranslation();
   const baseRate = rates[base];
   const baseRateY = ratesYesterday[base];
   const featured = [
@@ -1975,7 +1984,7 @@ function Currencies({
 
   return (
     <section>
-      <SectionHeader title="Currencies" hint={`1 ${base} converts to`} />
+      <SectionHeader title={t("section.currencies")} hint={`1 ${base} converts to`} />
       <div className="rounded-2xl bg-slate-900 p-5 text-white shadow-lg">
         <div className="grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           {list.map((ccy) => (

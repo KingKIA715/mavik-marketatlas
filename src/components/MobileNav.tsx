@@ -1,16 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import { Home, Calculator, Newspaper } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useTranslation } from "@/lib/i18n";
 
 interface MobileNavProps {
   currentPath?: string;
 }
 
 export function MobileNav({ currentPath = "/" }: MobileNavProps) {
+  const { t } = useTranslation();
   const items = [
-    { to: "/", label: "Home", icon: Home },
-    { to: "/resources", label: "Tools", icon: Calculator },
-    { to: "/news", label: "News", icon: Newspaper },
+    { to: "/", label: t("nav.home"), icon: Home },
+    { to: "/resources", label: t("nav.tools"), icon: Calculator },
+    { to: "/news", label: t("nav.news"), icon: Newspaper },
   ];
 
   return (
