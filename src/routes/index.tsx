@@ -27,8 +27,9 @@ import {
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
-import { usePinned, usePriceAlerts, type PriceAlert } from "@/lib/use-watchlist";
+import { usePinned, usePriceAlerts, useRecentSearches, type PriceAlert } from "@/lib/use-watchlist";
 import { PortfolioCard } from "@/components/PortfolioCard";
+import { fuzzyScore } from "@/lib/fuzzy-search";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -416,6 +417,7 @@ function TodaySnapshot({
           items={movers}
           keyOf={(m) => m.key}
           locked={locked}
+          ariaLabel="Today's top movers"
           renderItem={(m) => {
             const up = m.changePercent >= 0;
             return (
@@ -518,6 +520,7 @@ function PinnedBar({
           items={resolved}
           keyOf={(r) => r.key}
           locked={locked}
+          ariaLabel="Pinned favorites"
           renderItem={(r) => {
             const up = r.changePercent >= 0;
             return (
@@ -585,21 +588,31 @@ function SearchAndAlerts({
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [alertsOpen, setAlertsOpen] = useState(false);
+  const { recents, add: addRecent } = useRecentSearches();
 
   const index = useMemo(() => buildAssetIndex(country), [country]);
   const results = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim();
     if (q.length < 1) return [];
-    return index.filter((a) => a.label.toLowerCase().includes(q)).slice(0, 8);
+    return index
+      .map((a) => ({ a, score: fuzzyScore(q, a.label) }))
+      .filter((x): x is { a: AssetRef; score: number } => x.score !== null)
+      .sort((x, y) => y.score - x.score)
+      .slice(0, 8)
+      .map((x) => x.a);
   }, [query, index]);
 
   const activeAlertCount = alerts.filter((a) => !a.firedAt).length;
 
   const selectResult = (a: AssetRef) => {
+    addRecent({ key: a.key, category: a.category, label: a.label, emoji: a.emoji, sub: a.sub });
     setQuery("");
     setFocused(false);
     onJump(a.category);
   };
+
+  const showRecents = focused && query.trim().length === 0 && recents.length > 0;
+  const showResults = focused && results.length > 0;
 
   return (
     <div className="border-b border-border bg-background">
@@ -611,15 +624,48 @@ function SearchAndAlerts({
             onChange={(e) => setQuery(e.target.value)}
             onFocus={() => setFocused(true)}
             onBlur={() => setTimeout(() => setFocused(false), 150)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setQuery("");
+                setFocused(false);
+              }
+            }}
             placeholder="Search gold, BTC, Nifty, EUR..."
             className="h-10 pl-9"
+            role="combobox"
+            aria-expanded={showRecents || showResults}
+            aria-controls="search-listbox"
+            aria-autocomplete="list"
+            aria-label="Search instruments"
           />
-          {focused && results.length > 0 ? (
-            <div className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+          {showRecents ? (
+            <div id="search-listbox" role="listbox" aria-label="Recent searches" className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
+              <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                Recent searches
+              </div>
+              {recents.map((r) => (
+                <button
+                  key={r.key}
+                  type="button"
+                  role="option"
+                  aria-selected={false}
+                  onMouseDown={() => onJump(r.category)}
+                  className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-surface-alt"
+                >
+                  <span aria-hidden>{r.emoji}</span>
+                  <span className="text-foreground">{r.label}</span>
+                  <span className="ml-auto text-[10px] text-muted-foreground">{r.sub}</span>
+                </button>
+              ))}
+            </div>
+          ) : showResults ? (
+            <div id="search-listbox" role="listbox" aria-label="Search results" className="absolute left-0 right-0 top-full z-20 mt-1 max-h-72 overflow-y-auto rounded-lg border border-border bg-card shadow-lg">
               {results.map((r) => (
                 <button
                   key={r.key}
                   type="button"
+                  role="option"
+                  aria-selected={false}
                   onMouseDown={() => selectResult(r)}
                   className="flex w-full items-center gap-2 border-b border-border px-3 py-2.5 text-left text-sm last:border-b-0 hover:bg-surface-alt"
                 >
@@ -817,6 +863,7 @@ function CountryTiles({
           keyOf={(c) => c}
           secondsPerItem={2.5}
           locked={locked}
+          ariaLabel="Select country"
           renderItem={(c) => {
             const cd = COUNTRIES[c];
             const active = c === country;
@@ -879,6 +926,7 @@ function AssetTiles({
           keyOf={(a) => a.id}
           secondsPerItem={2.5}
           locked={locked}
+          ariaLabel="Filter by asset type"
           renderItem={(asset) => {
             const active = selectedAsset === asset.id;
             return (

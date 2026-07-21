@@ -10,6 +10,8 @@ interface MarqueeRowProps<T> {
   secondsPerItem?: number;
   className?: string;
   itemClassName?: string;
+  /** Accessible name for the row, e.g. "Select country". Recommended whenever the row isn't preceded by its own visible heading. */
+  ariaLabel?: string;
   /**
    * Once true, the row stops auto-rotating for good and switches to a plain
    * manually-scrollable strip (drag/swipe/wheel, plus chevron buttons on
@@ -40,6 +42,7 @@ export function MarqueeRow<T>({
   className,
   itemClassName,
   locked = false,
+  ariaLabel,
 }: MarqueeRowProps<T>) {
   const [paused, setPaused] = useState(false);
   const pauseTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -64,7 +67,7 @@ export function MarqueeRow<T>({
   // it never switches back to auto-rotating.
   if (locked || items.length === 1) {
     return (
-      <div className={cn("flex items-center gap-1", className)}>
+      <div className={cn("flex items-center gap-1", className)} role="group" aria-label={ariaLabel}>
         {items.length > 1 ? (
           <button
             type="button"
@@ -104,9 +107,12 @@ export function MarqueeRow<T>({
   return (
     <div
       className={cn("overflow-hidden", className)}
+      role="group"
+      aria-label={ariaLabel}
       onPointerDown={handleInteract}
       onTouchStart={handleInteract}
       onWheel={handleInteract}
+      onFocus={handleInteract}
     >
       <div
         className="flex w-max animate-marquee gap-2"

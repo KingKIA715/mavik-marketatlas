@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import type { AssetCategory } from "./asset-resolver";
 
 /* ------------------------------- Pinned favorites --------------------------- */
 // Key format: "<category>:<id>" e.g. "metals:XAU", "crypto:BTC", "stocks:^NSEI", "fx:EUR"
@@ -177,4 +178,58 @@ export function usePortfolio() {
   }, []);
 
   return { holdings, add, updateQuantity, remove };
+}
+
+/* ------------------------------ Recent searches -------------------------------- */
+
+const RECENTS_KEY = "marketatlas:recent-searches";
+const RECENTS_EVENT = "marketatlas:recent-searches-changed";
+const MAX_RECENTS = 6;
+
+export interface RecentSearch {
+  key: string; // matches AssetRef.key — "<category>:<id>"
+  category: AssetCategory;
+  label: string;
+  emoji: string;
+  sub: string;
+}
+
+function readRecents(): RecentSearch[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeRecents(recents: RecentSearch[]) {
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(recents));
+  } catch {
+    // ignore
+  }
+  window.dispatchEvent(new Event(RECENTS_EVENT));
+}
+
+export function useRecentSearches() {
+  const [recents, setRecents] = useState<RecentSearch[]>([]);
+
+  useEffect(() => {
+    setRecents(readRecents());
+    const sync = () => setRecents(readRecents());
+    window.addEventListener(RECENTS_EVENT, sync);
+    return () => window.removeEventListener(RECENTS_EVENT, sync);
+  }, []);
+
+  const add = useCallback((entry: RecentSearch) => {
+    const prev = readRecents().filter((r) => r.key !== entry.key);
+    writeRecents([entry, ...prev].slice(0, MAX_RECENTS));
+  }, []);
+
+  const clear = useCallback(() => writeRecents([]), []);
+
+  return { recents, add, clear };
 }

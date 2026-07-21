@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
+import { METALS, CRYPTOS, STOCKS } from "@/lib/market-config";
 
 const BASE_URL = "https://mavik-marketatlas.lovable.app";
 
@@ -19,6 +20,28 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/", lastmod: today, changefreq: "hourly", priority: "1.0" },
           { path: "/resources", lastmod: today, changefreq: "weekly", priority: "0.7" },
           { path: "/news", lastmod: today, changefreq: "hourly", priority: "0.6" },
+          // History pages — one per metal, crypto, and tracked stock index/ticker.
+          // FX pairs are excluded: there are too many country×currency combinations
+          // to be worth individual sitemap entries, and they're much lower search
+          // intent than a named metal/crypto/stock.
+          ...METALS.map((m) => ({
+            path: `/history/${encodeURIComponent(m.yahoo)}`,
+            lastmod: today,
+            changefreq: "daily" as const,
+            priority: "0.6",
+          })),
+          ...CRYPTOS.map((c) => ({
+            path: `/history/${encodeURIComponent(c.yahoo)}`,
+            lastmod: today,
+            changefreq: "daily" as const,
+            priority: "0.6",
+          })),
+          ...Object.keys(STOCKS).map((ticker) => ({
+            path: `/history/${encodeURIComponent(ticker)}`,
+            lastmod: today,
+            changefreq: "daily" as const,
+            priority: "0.5",
+          })),
         ];
 
         const urls = entries.map((e) =>

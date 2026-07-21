@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useState } from "react";
 import { getNews } from "@/lib/market.functions";
@@ -136,6 +136,16 @@ function NewsPage() {
             Headlines for {def.name} via {source}
           </p>
         ) : null}
+
+        <div className="mt-8 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-border pt-5 text-xs text-muted-foreground">
+          <span>See the trend behind the headlines:</span>
+          <Link to="/history/$symbol" params={{ symbol: "GC=F" }} className="text-[color:var(--brand)] hover:underline">
+            Gold history
+          </Link>
+          <Link to="/history/$symbol" params={{ symbol: "BTC-USD" }} className="text-[color:var(--brand)] hover:underline">
+            Bitcoin history
+          </Link>
+        </div>
       </main>
 
       <Footer />

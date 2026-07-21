@@ -245,8 +245,26 @@ interface FooterProps {
 export function Footer({ sources }: FooterProps) {
   void sources; // kept for call-site compatibility; footer now shows a fixed provider list everywhere
 
+  const flagshipHistory: { label: string; symbol: string }[] = [
+    { label: "Gold price history", symbol: "GC=F" },
+    { label: "Silver price history", symbol: "SI=F" },
+    { label: "Bitcoin price history", symbol: "BTC-USD" },
+  ];
+
   return (
     <footer className="mt-8 border-t border-border pt-5">
+      <div className="flex flex-wrap gap-x-4 gap-y-1 pb-3 text-[11px]">
+        {flagshipHistory.map((h) => (
+          <Link
+            key={h.symbol}
+            to="/history/$symbol"
+            params={{ symbol: h.symbol }}
+            className="text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+          >
+            {h.label}
+          </Link>
+        ))}
+      </div>
       <div className="space-y-1.5 text-[11px] text-muted-foreground">
         <div className="font-medium">
           © MarketAtlas · built by <span className="font-semibold text-foreground">MAVIK group</span>

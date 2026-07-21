@@ -91,6 +91,7 @@ export function PortfolioCard({
                     min={0}
                     step="any"
                     value={holding.quantity}
+                    aria-label={`Quantity of ${resolved.label} held, in ${meta.unit}`}
                     onChange={(e) => {
                       const v = Number(e.target.value);
                       if (Number.isFinite(v) && v >= 0) updateQuantity(holding.id, v);
@@ -127,8 +128,9 @@ export function PortfolioCard({
       {adding ? (
         <div className="mt-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-background p-3">
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">Asset</label>
+            <label htmlFor="portfolio-add-asset" className="text-xs font-medium text-muted-foreground">Asset</label>
             <select
+              id="portfolio-add-asset"
               value={newAsset}
               onChange={(e) => setNewAsset(e.target.value)}
               className="block rounded border border-border bg-transparent px-2 py-1.5 text-sm"
@@ -139,10 +141,11 @@ export function PortfolioCard({
             </select>
           </div>
           <div className="space-y-1">
-            <label className="text-xs font-medium text-muted-foreground">
+            <label htmlFor="portfolio-add-qty" className="text-xs font-medium text-muted-foreground">
               Quantity ({HOLDABLE_ASSETS.find((a) => a.assetKey === newAsset)?.unit})
             </label>
             <input
+              id="portfolio-add-qty"
               type="number"
               min={0}
               step="any"

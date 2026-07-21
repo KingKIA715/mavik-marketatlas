@@ -42,6 +42,21 @@ import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
 import { MarqueeRow } from "@/components/MarqueeRow";
 import { cn } from "@/lib/utils";
+import {
+  calculateSIP,
+  calculateLumpsum,
+  calculateEMI,
+  calculateInflation,
+  calculateMetalGrams,
+  calculateStepUpSIP,
+  calculateFD,
+  calculateRD,
+  calculatePPF,
+  calculateTax,
+  calculateFuelCost,
+  calculateMortgage,
+  calculate401k,
+} from "@/lib/calculators";
 
 
 const snapshotQuery = (fetcher: () => Promise<MarketSnapshot>) =>
@@ -156,6 +171,7 @@ const handleGroupChange = (g: "general" | "india" | "usa") => {
         keyOf={(t) => t.id}
         secondsPerItem={2.2}
         locked={toolsLocked}
+        ariaLabel={`${TOOL_GROUPS.find((g) => g.id === activeGroup)?.label ?? ""} calculators`}
         renderItem={(t) => {
           const Icon = t.icon;
           const active = t.id === activeTool;
@@ -314,13 +330,10 @@ function SIPCalculator() {
   const [rate, setRate] = useState(12);
   const [currency, setCurrency] = useState("INR");
 
-  const { invested, future, gain } = useMemo(() => {
-    const n = years * 12;
-    const r = rate / 100 / 12;
-    const fv = r === 0 ? monthly * n : monthly * ((Math.pow(1 + r, n) - 1) / r) * (1 + r);
-    const inv = monthly * n;
-    return { invested: inv, future: fv, gain: fv - inv };
-  }, [monthly, years, rate]);
+  const { invested, future, gain } = useMemo(
+    () => calculateSIP(monthly, years, rate),
+    [monthly, years, rate],
+  );
 
   return (
     <Card>
@@ -353,10 +366,10 @@ function LumpsumCalculator() {
   const [rate, setRate] = useState(12);
   const [currency, setCurrency] = useState("INR");
 
-  const { future, gain } = useMemo(() => {
-    const fv = amount * Math.pow(1 + rate / 100, years);
-    return { future: fv, gain: fv - amount };
-  }, [amount, years, rate]);
+  const { future, gain } = useMemo(
+    () => calculateLumpsum(amount, years, rate),
+    [amount, years, rate],
+  );
 
   return (
     <Card>
@@ -389,14 +402,10 @@ function EMICalculator() {
   const [years, setYears] = useState(20);
   const [currency, setCurrency] = useState("INR");
 
-  const { emi, total, interest } = useMemo(() => {
-    const n = years * 12;
-    const r = rate / 100 / 12;
-    const e =
-      r === 0 ? principal / n : (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1);
-    const t = e * n;
-    return { emi: e, total: t, interest: t - principal };
-  }, [principal, rate, years]);
+  const { emi, total, interest } = useMemo(
+    () => calculateEMI(principal, rate, years),
+    [principal, rate, years],
+  );
 
   return (
     <Card>
@@ -446,10 +455,7 @@ function MetalCalculator({ data }: { data: MarketSnapshot }) {
 
   const pricePerOz = spotUsdOz * fx;
   const pricePerGram = pricePerOz / GRAMS_PER_TROY_OUNCE;
-
-  const grams = amount / pricePerGram;
-  const futureValue = amount * Math.pow(1 + growth / 100, years);
-  const gain = futureValue - amount;
+  const { grams, futureValue, gain } = calculateMetalGrams(amount, spotUsdOz, fx, 1, growth, years);
 
   const label = { XAU: "Gold", XAG: "Silver", XPT: "Platinum" }[metal];
 
@@ -495,8 +501,7 @@ function InflationCalculator() {
   const [rate, setRate] = useState(6);
   const [currency, setCurrency] = useState("INR");
 
-  const future = amount * Math.pow(1 + rate / 100, years);
-  const purchasingPower = amount / Math.pow(1 + rate / 100, years);
+  const { future, purchasingPower } = calculateInflation(amount, years, rate);
 
   return (
     <Card>
@@ -626,20 +631,10 @@ function StepUpSIPCalculator() {
   const [stepUp, setStepUp] = useState(10);
   const [currency, setCurrency] = useState("INR");
 
-  const { invested, future, gain } = useMemo(() => {
-    const monthlyRate = rate / 100 / 12;
-    let corpus = 0;
-    let invested = 0;
-    let currentMonthly = monthly;
-    for (let y = 0; y < years; y++) {
-      for (let m = 0; m < 12; m++) {
-        corpus = (corpus + currentMonthly) * (1 + monthlyRate);
-        invested += currentMonthly;
-      }
-      currentMonthly *= 1 + stepUp / 100;
-    }
-    return { invested, future: corpus, gain: corpus - invested };
-  }, [monthly, years, rate, stepUp]);
+  const { invested, future, gain } = useMemo(
+    () => calculateStepUpSIP(monthly, years, rate, stepUp),
+    [monthly, years, rate, stepUp],
+  );
 
   return (
     <Card>
@@ -690,20 +685,13 @@ function FDRDCalculator() {
 
   const fdResult = useMemo(() => {
     const freq = COMPOUNDING_OPTIONS.find((c) => c.id === compounding)?.n ?? 4;
-    const maturity = principal * Math.pow(1 + rate / 100 / freq, freq * years);
-    return { invested: principal, maturity, interest: maturity - principal };
+    return calculateFD(principal, rate, years, freq);
   }, [principal, rate, years, compounding]);
 
-  const rdResult = useMemo(() => {
-    const months = years * 12;
-    const monthlyRate = rate / 100 / 12;
-    let maturity = 0;
-    for (let m = 0; m < months; m++) {
-      maturity = (maturity + monthly) * (1 + monthlyRate);
-    }
-    const invested = monthly * months;
-    return { invested, maturity, interest: maturity - invested };
-  }, [monthly, rate, years]);
+  const rdResult = useMemo(
+    () => calculateRD(monthly, rate, years),
+    [monthly, rate, years],
+  );
 
   const result = mode === "fd" ? fdResult : rdResult;
 
@@ -772,16 +760,10 @@ function PPFCalculator() {
   const [rate, setRate] = useState(7.1);
   const [years, setYears] = useState(15);
 
-  const { invested, maturity, interest } = useMemo(() => {
-    const r = rate / 100;
-    // Annuity-due: deposit at the start of each year, then that year's interest applies.
-    let corpus = 0;
-    for (let y = 0; y < years; y++) {
-      corpus = (corpus + yearly) * (1 + r);
-    }
-    const invested = yearly * years;
-    return { invested, maturity: corpus, interest: corpus - invested };
-  }, [yearly, rate, years]);
+  const { invested, maturity, interest } = useMemo(
+    () => calculatePPF(yearly, rate, years),
+    [yearly, rate, years],
+  );
 
   return (
     <Card>
@@ -830,15 +812,10 @@ function GSTCalculator() {
 
   const rate = preset === "custom" ? customRate : GST_PRESETS.find((p) => p.id === preset)?.rate ?? 18;
 
-  const { base, gstAmount, total } = useMemo(() => {
-    if (direction === "add") {
-      const gstAmount = amount * (rate / 100);
-      return { base: amount, gstAmount, total: amount + gstAmount };
-    }
-    const base = amount / (1 + rate / 100);
-    const gstAmount = amount - base;
-    return { base, gstAmount, total: amount };
-  }, [amount, rate, direction]);
+  const { base, tax: gstAmount, total } = useMemo(
+    () => calculateTax(amount, rate, direction),
+    [amount, rate, direction],
+  );
 
   return (
     <Card>
@@ -907,15 +884,10 @@ function VATCalculator() {
 
   const rate = preset === "custom" ? customRate : VAT_PRESETS.find((p) => p.id === preset)?.rate ?? 5;
 
-  const { base, vatAmount, total } = useMemo(() => {
-    if (direction === "add") {
-      const vatAmount = amount * (rate / 100);
-      return { base: amount, vatAmount, total: amount + vatAmount };
-    }
-    const base = amount / (1 + rate / 100);
-    const vatAmount = amount - base;
-    return { base, vatAmount, total: amount };
-  }, [amount, rate, direction]);
+  const { base, tax: vatAmount, total } = useMemo(
+    () => calculateTax(amount, rate, direction),
+    [amount, rate, direction],
+  );
 
   return (
     <Card>
@@ -992,11 +964,14 @@ function FuelCostCalculator({ data }: { data: MarketSnapshot }) {
     const fallback = FUEL_REFERENCE[country][fuelType];
     const pricePerUnit = Number.isFinite(derived) && derived > 0 ? derived : fallback;
 
-    const volumePerMonth =
-      mileage > 0 ? (dailyDistance * daysPerMonth) / mileage : NaN;
-    const monthlyCost = volumePerMonth * pricePerUnit;
+    const { volumePerMonth, monthlyCost, yearlyCost } = calculateFuelCost(
+      pricePerUnit,
+      mileage,
+      dailyDistance,
+      daysPerMonth,
+    );
 
-    return { pricePerUnit, monthlyCost, yearlyCost: monthlyCost * 12, volumePerMonth };
+    return { pricePerUnit, monthlyCost, yearlyCost, volumePerMonth };
   }, [country, fuelType, mileage, dailyDistance, daysPerMonth, data, def]);
 
   return (
@@ -1208,22 +1183,10 @@ function MortgageCalculator() {
   const [annualInsurance, setAnnualInsurance] = useState(1500);
   const [pmiPct, setPmiPct] = useState(0.5);
 
-  const result = useMemo(() => {
-    const downPayment = homePrice * (downPaymentPct / 100);
-    const loanAmount = Math.max(0, homePrice - downPayment);
-    const monthlyRate = rate / 100 / 12;
-    const n = years * 12;
-    const principalAndInterest =
-      monthlyRate > 0
-        ? (loanAmount * monthlyRate * Math.pow(1 + monthlyRate, n)) / (Math.pow(1 + monthlyRate, n) - 1)
-        : loanAmount / n;
-    const monthlyTax = (homePrice * (propertyTaxPct / 100)) / 12;
-    const monthlyInsurance = annualInsurance / 12;
-    const monthlyPMI = downPaymentPct < 20 ? (loanAmount * (pmiPct / 100)) / 12 : 0;
-    const totalMonthly = principalAndInterest + monthlyTax + monthlyInsurance + monthlyPMI;
-    const totalInterest = principalAndInterest * n - loanAmount;
-    return { loanAmount, principalAndInterest, monthlyTax, monthlyInsurance, monthlyPMI, totalMonthly, totalInterest };
-  }, [homePrice, downPaymentPct, rate, years, propertyTaxPct, annualInsurance, pmiPct]);
+  const result = useMemo(
+    () => calculateMortgage(homePrice, downPaymentPct, rate, years, propertyTaxPct, annualInsurance, pmiPct),
+    [homePrice, downPaymentPct, rate, years, propertyTaxPct, annualInsurance, pmiPct],
+  );
 
   return (
     <Card>
@@ -1288,21 +1251,10 @@ function Retirement401kCalculator() {
   const [employerMatchPct, setEmployerMatchPct] = useState(3);
   const [returnRate, setReturnRate] = useState(7);
 
-  const result = useMemo(() => {
-    const years = Math.max(0, retireAge - currentAge);
-    const monthlyRate = returnRate / 100 / 12;
-    const employeeMonthly = (salary * (contributionPct / 100)) / 12;
-    const matchMonthly = (salary * (Math.min(contributionPct, employerMatchPct) / 100)) / 12;
-    const monthlyDeposit = employeeMonthly + matchMonthly;
-
-    let corpus = currentBalance;
-    for (let m = 0; m < years * 12; m++) {
-      corpus = (corpus + monthlyDeposit) * (1 + monthlyRate);
-    }
-    const totalContributed = currentBalance + employeeMonthly * years * 12;
-    const totalEmployerMatch = matchMonthly * years * 12;
-    return { corpus, totalContributed, totalEmployerMatch, monthlyDeposit, years };
-  }, [currentAge, retireAge, currentBalance, salary, contributionPct, employerMatchPct, returnRate]);
+  const result = useMemo(
+    () => calculate401k(currentAge, retireAge, currentBalance, salary, contributionPct, employerMatchPct, returnRate),
+    [currentAge, retireAge, currentBalance, salary, contributionPct, employerMatchPct, returnRate],
+  );
 
   return (
     <Card>
