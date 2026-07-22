@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
+import { useTranslation } from "@/lib/i18n";
 import {
   GRAMS_PER_TROY_OUNCE,
   COUNTRIES,
@@ -170,7 +171,7 @@ const handleGroupChange = (g: "general" | "india" | "usa") => {
       <MarqueeRow
         items={groupTools}
         keyOf={(t) => t.id}
-        secondsPerItem={2.2}
+        secondsPerItem={7}
         locked={toolsLocked}
         ariaLabel={`${TOOL_GROUPS.find((g) => g.id === activeGroup)?.label ?? ""} calculators`}
         renderItem={(t) => {

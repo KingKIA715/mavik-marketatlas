@@ -1,13 +1,23 @@
-import { useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Briefcase, Plus, X } from "lucide-react";
 import type { MarketSnapshot } from "@/lib/market.functions";
 import { resolveAsset } from "@/lib/asset-resolver";
 import { METALS, CRYPTOS, type CountryCode, COUNTRIES } from "@/lib/market-config";
 import { usePortfolio } from "@/lib/use-watchlist";
 import { useTranslation } from "@/lib/i18n";
-import { PortfolioHistoryChart } from "@/components/PortfolioHistoryChart";
 import { fmtCurrency, fmtNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
+
+// Lazy-loaded: this card renders unconditionally at the top of every
+// dashboard visit, but PortfolioHistoryChart pulls in recharts, and most
+// first-time visitors have zero holdings (this is localStorage-only, no
+// accounts). Loading recharts eagerly here would put a full charting
+// library in the main dashboard bundle for everyone, most of whom will
+// never see this chart. Split it into its own chunk, fetched only once
+// there's at least one holding to actually chart.
+const PortfolioHistoryChart = lazy(() =>
+  import("@/components/PortfolioHistoryChart").then((m) => ({ default: m.PortfolioHistoryChart })),
+);
 
 const HOLDABLE_ASSETS = [
   ...METALS.map((m) => ({ assetKey: `metals:${m.code}`, label: m.name, emoji: m.code === "XAU" ? "🪙" : m.code === "XAG" ? "🥈" : "⚪", unit: "g" })),
@@ -129,7 +139,9 @@ export function PortfolioCard({
       ) : null}
 
       {holdings.length > 0 ? (
-        <PortfolioHistoryChart holdings={holdings} currency={def.currency} fxToLocal={toLocal} />
+        <Suspense fallback={<div className="mt-4 h-40 w-full animate-pulse rounded-lg bg-surface-alt" />}>
+          <PortfolioHistoryChart holdings={holdings} currency={def.currency} fxToLocal={toLocal} />
+        </Suspense>
       ) : null}
 
       {adding ? (

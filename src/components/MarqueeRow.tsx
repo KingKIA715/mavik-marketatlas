@@ -38,7 +38,7 @@ export function MarqueeRow<T>({
   items,
   keyOf,
   renderItem,
-  secondsPerItem = 3.5,
+  secondsPerItem = 9,
   className,
   itemClassName,
   locked = false,
@@ -102,7 +102,7 @@ export function MarqueeRow<T>({
     );
   }
 
-  const durationSec = Math.max(8, items.length * secondsPerItem);
+  const durationSec = Math.max(24, items.length * secondsPerItem);
 
   return (
     <div

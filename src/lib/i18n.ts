@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 
 /**
  * Real infrastructure (language persistence, a translation hook, a
- * switcher, RTL support) covering English, Hindi, Chinese, Japanese, and
- * Arabic — the five markets this app targets.
+ * switcher, RTL support) covering English, Tamil, Hindi, Chinese, Japanese,
+ * and Arabic — the markets this app targets.
  *
  * Deliberately scoped to app chrome — navigation, section headers, the
  * portfolio card, search — not calculator form fields or news content
  * (news is sourced from external RSS feeds already in their original
  * language and can't be meaningfully translated here). Translating the
- * full calculator suite into 4 more languages is a much bigger, separate
+ * full calculator suite into more languages is a much bigger, separate
  * effort — this covers what a visitor sees before they pick a specific
  * tool, which is where a language switch matters most.
  *
@@ -25,10 +25,11 @@ import { useCallback, useEffect, useState } from "react";
  * separate, much larger pass than this one.
  */
 
-export type LanguageCode = "en" | "hi" | "zh" | "ja" | "ar";
+export type LanguageCode = "en" | "ta" | "hi" | "zh" | "ja" | "ar";
 
 export const LANGUAGES: { code: LanguageCode; label: string; nativeLabel: string; dir: "ltr" | "rtl" }[] = [
   { code: "en", label: "English", nativeLabel: "English", dir: "ltr" },
+  { code: "ta", label: "Tamil", nativeLabel: "தமிழ்", dir: "ltr" },
   { code: "hi", label: "Hindi", nativeLabel: "हिन्दी", dir: "ltr" },
   { code: "zh", label: "Chinese", nativeLabel: "中文", dir: "ltr" },
   { code: "ja", label: "Japanese", nativeLabel: "日本語", dir: "ltr" },
@@ -62,6 +63,33 @@ const en: Dict = {
   "language.label": "Language",
   "portfolio.changeDisclaimer": "Change % is today's market move, not your gain/loss since purchase.",
   "portfolio.historyDisclaimer": "Approximate — applies today's exchange rate across the whole period rather than each date's actual rate.",
+};
+
+const ta: Dict = {
+  "nav.home": "முகப்பு",
+  "nav.tools": "கருவிகள்",
+  "nav.news": "செய்திகள்",
+  "footer.tagline": "பொதுமக்களுக்கான உலகளாவிய நிதி மையம் 🫂",
+  "search.placeholder": "தங்கம், BTC, நிஃப்டி, EUR தேடுங்கள்...",
+  "search.alerts": "விலை எச்சரிக்கைகள்",
+  "resources.group.general": "பொது",
+  "resources.group.india": "இந்தியா",
+  "resources.group.usa": "அமெரிக்கா",
+  "portfolio.title": "உங்கள் சொத்துக்கள்",
+  "portfolio.addHolding": "சொத்து சேர்",
+  "portfolio.trackPrompt": "உங்கள் சொத்துக்களைக் கண்காணிக்கவும் — தங்கம், வெள்ளி அல்லது கிரிப்டோ சேர்க்கவும்",
+  "portfolio.valueOverTime": "காலப்போக்கில் மதிப்பு",
+  "portfolio.disclaimer": "இந்தச் சாதனத்தில் மட்டுமே சேமிக்கப்படுகிறது — கணக்கு தேவையில்லை, எங்கும் அனுப்பப்படாது.",
+  "section.metals": "விலையுயர்ந்த உலோகங்கள்",
+  "section.crypto": "கிரிப்டோகரன்சி",
+  "section.stocks": "பங்குச் சந்தை",
+  "section.fuel": "பெட்ரோல் & எரிபொருள்",
+  "section.news": "நிதி செய்திகள்",
+  "section.currencies": "நாணயங்கள்",
+  "pinned.title": "பின் செய்யப்பட்டவை",
+  "language.label": "மொழி",
+  "portfolio.changeDisclaimer": "மாற்றம் % என்பது இன்றைய சந்தை நகர்வு, வாங்கியதிலிருந்து உங்கள் லாபம்/நஷ்டம் அல்ல.",
+  "portfolio.historyDisclaimer": "தோராயமானது — ஒவ்வொரு தேதியின் உண்மையான விகிதத்திற்குப் பதிலாக இன்றைய மாற்று விகிதத்தையே முழு காலகட்டத்திற்கும் பயன்படுத்துகிறது.",
 };
 
 const hi: Dict = {
@@ -172,7 +200,7 @@ const ar: Dict = {
   "portfolio.historyDisclaimer": "تقريبي — يطبّق سعر الصرف الحالي على كامل الفترة بدلاً من السعر الفعلي لكل تاريخ.",
 };
 
-const DICTS: Record<LanguageCode, Dict> = { en, hi, zh, ja, ar };
+const DICTS: Record<LanguageCode, Dict> = { en, ta, hi, zh, ja, ar };
 
 const LANG_KEY = "marketatlas:language";
 const LANG_EVENT = "marketatlas:language-changed";

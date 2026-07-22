@@ -864,7 +864,7 @@ function CountryTiles({
         <MarqueeRow
           items={COUNTRY_ORDER}
           keyOf={(c) => c}
-          secondsPerItem={2.5}
+          secondsPerItem={7}
           locked={locked}
           ariaLabel="Select country"
           renderItem={(c) => {
@@ -927,7 +927,7 @@ function AssetTiles({
         <MarqueeRow
           items={assets}
           keyOf={(a) => a.id}
-          secondsPerItem={2.5}
+          secondsPerItem={7}
           locked={locked}
           ariaLabel="Filter by asset type"
           renderItem={(asset) => {

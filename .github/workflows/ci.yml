@@ -1,0 +1,35 @@
+name: CI
+
+# Runs the same three checks documented in README.md's "Getting started"
+# section (lint, test, build) on every push and pull request. This didn't
+# exist before — there was no automated check catching a broken build or a
+# failing test before it reached the Lovable-connected branch. Bun is used
+# throughout since the repo is bun-first (bun.lock is the committed
+# lockfile; npm/yarn aren't used here).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Test
+        run: bun test
+
+      - name: Build
+        run: bun run build
