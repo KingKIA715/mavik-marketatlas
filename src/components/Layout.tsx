@@ -16,8 +16,8 @@ import { useTranslation, LANGUAGES, type LanguageCode } from "@/lib/i18n";
 export function ScrollIndicator() {
   return (
     <>
-      <div className="pointer-events-none absolute inset-y-0 left-0 w-6 bg-gradient-to-r from-background to-transparent sm:w-8" />
-      <div className="pointer-events-none absolute inset-y-0 right-0 w-6 bg-gradient-to-l from-background to-transparent sm:w-8" />
+      <div className="pointer-events-none absolute inset-y-0 start-0 w-6 bg-gradient-to-r from-background to-transparent rtl:bg-gradient-to-l sm:w-8" />
+      <div className="pointer-events-none absolute inset-y-0 end-0 w-6 bg-gradient-to-l from-background to-transparent rtl:bg-gradient-to-r sm:w-8" />
     </>
   );
 }
@@ -65,7 +65,7 @@ export function ScrollArrows({
         type="button"
         onClick={() => scroll("left")}
         className={cn(
-          "absolute left-1 top-1/2 z-10 -translate-y-1/2 sm:hidden",
+          "absolute start-1 top-1/2 z-10 -translate-y-1/2 sm:hidden",
           "inline-flex h-7 w-7 items-center justify-center rounded-full",
           "border border-border/60 bg-background/85 text-foreground shadow-sm backdrop-blur-sm",
           "transition-opacity duration-200",
@@ -73,13 +73,13 @@ export function ScrollArrows({
         )}
         aria-label="Scroll left"
       >
-        <ChevronLeft className="h-4 w-4" />
+        <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
       </button>
       <button
         type="button"
         onClick={() => scroll("right")}
         className={cn(
-          "absolute right-1 top-1/2 z-10 -translate-y-1/2 sm:hidden",
+          "absolute end-1 top-1/2 z-10 -translate-y-1/2 sm:hidden",
           "inline-flex h-7 w-7 items-center justify-center rounded-full",
           "border border-border/60 bg-background/85 text-foreground shadow-sm backdrop-blur-sm",
           "transition-opacity duration-200",
@@ -87,7 +87,7 @@ export function ScrollArrows({
         )}
         aria-label="Scroll right"
       >
-        <ChevronRight className="h-4 w-4" />
+        <ChevronRight className="h-4 w-4 rtl:rotate-180" />
       </button>
     </>
   );

@@ -89,7 +89,7 @@ export function PwaManager() {
     <div
       className={cn(
         "fixed inset-x-3 bottom-3 z-50 mx-auto flex max-w-md items-center gap-3 rounded-xl border border-border bg-card/95 p-3 shadow-lg backdrop-blur",
-        "sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-96",
+        "sm:inset-x-auto sm:end-4 sm:bottom-4 sm:w-96",
       )}
       role="dialog"
       aria-label="Install MarketAtlas"

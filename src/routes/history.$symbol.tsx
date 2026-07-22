@@ -48,6 +48,7 @@ export const Route = createFileRoute("/history/$symbol")({
     const asset = resolveHistoryAsset(decodeURIComponent(params.symbol));
     const title = `${asset.title} Price History — Trends & Chart | MarketAtlas`;
     const description = `Historical ${asset.title} price trends with an interactive chart, period performance, and yearly highs/lows.`;
+    const ogImage = `${SITE}/api/og/${encodeURIComponent(asset.symbol)}`;
     return {
       meta: [
         { title },
@@ -56,6 +57,12 @@ export const Route = createFileRoute("/history/$symbol")({
         { property: "og:description", content: description },
         { property: "og:type", content: "article" },
         { property: "og:url", content: `${SITE}/history/${encodeURIComponent(asset.symbol)}` },
+        { property: "og:image", content: ogImage },
+        { property: "og:image:type", content: "image/svg+xml" },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { name: "twitter:card", content: "summary_large_image" },
+        { name: "twitter:image", content: ogImage },
       ],
       links: [{ rel: "canonical", href: `${SITE}/history/${encodeURIComponent(asset.symbol)}` }],
       scripts: [

@@ -27,7 +27,7 @@ import {
 import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
 import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
-import { usePinned, usePriceAlerts, useRecentSearches, type PriceAlert } from "@/lib/use-watchlist";
+import { usePinned, usePriceAlerts, useRecentSearches, useOnboarding, type PriceAlert } from "@/lib/use-watchlist";
 import { useTranslation } from "@/lib/i18n";
 import { PortfolioCard } from "@/components/PortfolioCard";
 import { fuzzyScore } from "@/lib/fuzzy-search";
@@ -68,7 +68,9 @@ import {
   Bell,
   Plus,
   Trash2,
+  Share2,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import {
   MetalRowSkeleton,
@@ -114,6 +116,49 @@ export const Route = createFileRoute("/")({
 /* =====================================================================
  * MAIN DASHBOARD
  * ===================================================================== */
+
+/* ------------------------------- Onboarding --------------------------------- */
+// A one-time welcome banner, not a full guided tour — a proper multi-step
+// tour library (positioning callouts against arbitrary DOM elements) isn't
+// something to add and ship unverified without a real browser to test
+// against. This is bounded and safe: three lines explaining the
+// no-login personalization features, dismissed once, never shown again
+// (same localStorage-only pattern as everything else personalized here).
+function OnboardingBanner() {
+  const { dismissed, dismiss } = useOnboarding();
+  const { t } = useTranslation();
+
+  if (dismissed) return null;
+
+  return (
+    <section className="rounded-xl border border-[color:var(--brand)]/30 bg-[color:var(--brand)]/5 p-4 sm:p-5">
+      <div className="flex items-start justify-between gap-3">
+        <h2 className="text-sm font-bold text-foreground">{t("onboarding.title")}</h2>
+        <button
+          type="button"
+          onClick={dismiss}
+          aria-label="Dismiss welcome message"
+          className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-surface-alt hover:text-foreground"
+        >
+          <X className="h-3.5 w-3.5" />
+        </button>
+      </div>
+      <ul className="mt-2 space-y-1.5 text-sm text-foreground">
+        <li>{t("onboarding.pin")}</li>
+        <li>{t("onboarding.alerts")}</li>
+        <li>{t("onboarding.portfolio")}</li>
+      </ul>
+      <p className="mt-3 text-xs text-muted-foreground">{t("onboarding.privacy")}</p>
+      <button
+        type="button"
+        onClick={dismiss}
+        className="mt-3 rounded-lg bg-[color:var(--brand)] px-3 py-1.5 text-sm font-semibold text-white"
+      >
+        {t("onboarding.dismiss")}
+      </button>
+    </section>
+  );
+}
 
 function Dashboard() {
   const fetcher = useServerFn(getMarketSnapshot);
@@ -215,6 +260,7 @@ function Dashboard() {
         suppressHydrationWarning
         className="mx-auto max-w-6xl space-y-12 px-4 pb-16 pt-6 sm:px-6 sm:pt-8"
       >
+        <OnboardingBanner />
         <PortfolioCard data={data} country={country} toLocal={toLocal} includeGST={includeGST} />
 
         {(!selectedAsset || selectedAsset === "metals") && (
@@ -293,6 +339,64 @@ function Dashboard() {
 /* =====================================================================
  * COUNTRY TILES
  * ===================================================================== */
+
+/* ------------------------------ Share snapshot ------------------------------ */
+// Shares the live per-country snapshot image (src/routes/api/snapshot/$country.ts)
+// as an actual file via the Web Share API where supported (native share
+// sheet on mobile — WhatsApp, Twitter, etc. show the real image, not a link
+// preview). Falls back to opening the image in a new tab on desktop/
+// unsupported browsers, where the user can save or share it manually.
+function ShareSnapshotButton({ country }: { country: CountryCode }) {
+  const [sharing, setSharing] = useState(false);
+
+  const handleShare = async () => {
+    setSharing(true);
+    try {
+      const url = `${window.location.origin}/api/snapshot/${country}`;
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("snapshot fetch failed");
+      const svgText = await res.text();
+      const file = new File([svgText], `marketatlas-${country.toLowerCase()}-snapshot.svg`, {
+        type: "image/svg+xml",
+      });
+
+      const canShareFile =
+        typeof navigator.share === "function" &&
+        typeof navigator.canShare === "function" &&
+        navigator.canShare({ files: [file] });
+
+      if (canShareFile) {
+        await navigator.share({
+          title: "MarketAtlas — Today's Snapshot",
+          text: "Today's gold, silver, crypto and market snapshot",
+          files: [file],
+        });
+      } else {
+        window.open(url, "_blank", "noopener,noreferrer");
+        toast("Opened the snapshot image — right-click (or long-press) to save or share it.");
+      }
+    } catch (err) {
+      // The user cancelling the native share sheet isn't a real failure.
+      if (err instanceof Error && err.name === "AbortError") return;
+      toast("Couldn't share the snapshot — try again in a moment.");
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={handleShare}
+      disabled={sharing}
+      className="flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt disabled:opacity-60"
+      aria-label="Share today's snapshot"
+    >
+      <Share2 className="h-3.5 w-3.5" />
+      <span className="hidden sm:inline">Share</span>
+    </button>
+  );
+}
 
 /* ------------------------------ Today's Snapshot --------------------------- */
 
@@ -406,14 +510,17 @@ function TodaySnapshot({
   return (
     <div className="border-b border-border bg-gradient-to-b from-surface-alt to-background">
       <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 sm:py-5">
-        {headline ? (
-          <p className="mb-3 text-sm font-medium text-foreground sm:text-base">
-            <span className="mr-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
-              Today
-            </span>
-            {headline}
-          </p>
-        ) : null}
+        <div className="mb-3 flex items-start justify-between gap-3">
+          {headline ? (
+            <p className="text-sm font-medium text-foreground sm:text-base">
+              <span className="me-1.5 text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                Today
+              </span>
+              {headline}
+            </p>
+          ) : <div />}
+          <ShareSnapshotButton country={country} />
+        </div>
         <MarqueeRow
           items={movers}
           keyOf={(m) => m.key}
@@ -526,7 +633,7 @@ function PinnedBar({
           renderItem={(r) => {
             const up = r.changePercent >= 0;
             return (
-              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-1.5 text-xs font-medium shadow-sm">
+              <div className="flex shrink-0 items-center gap-1.5 rounded-full border border-border bg-card py-1.5 ps-3 pe-1.5 text-xs font-medium shadow-sm">
                 <button
                   type="button"
                   onClick={() => {
@@ -621,7 +728,7 @@ function SearchAndAlerts({
     <div className="border-b border-border bg-background">
       <div className="mx-auto flex max-w-6xl items-center gap-2 px-4 py-3 sm:px-6">
         <div className="relative flex-1">
-          <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <SearchIcon className="pointer-events-none absolute start-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -634,7 +741,7 @@ function SearchAndAlerts({
               }
             }}
             placeholder={t("search.placeholder")}
-            className="h-10 pl-9"
+            className="h-10 ps-9"
             role="combobox"
             aria-expanded={showRecents || showResults}
             aria-controls="search-listbox"
@@ -689,7 +796,7 @@ function SearchAndAlerts({
         >
           <Bell className="h-4 w-4" />
           {activeAlertCount > 0 ? (
-            <span className="absolute -right-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--brand)] text-[9px] font-bold text-white">
+            <span className="absolute -end-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full bg-[color:var(--brand)] text-[9px] font-bold text-white">
               {activeAlertCount}
             </span>
           ) : null}
@@ -1326,7 +1433,7 @@ function MetalRow({
                     </div>
                     <div className="font-mono text-xl font-bold tabular text-foreground">
                       {fmtCurrency(display, currency, { maximumFractionDigits: 2 })}
-                      <span className="ml-1 text-[10px] font-medium uppercase text-muted-foreground">
+                      <span className="ms-1 text-[10px] font-medium uppercase text-muted-foreground">
                         /{showPerOunce ? "oz" : "g"}
                       </span>
                     </div>
@@ -1661,7 +1768,7 @@ function IndexCard({
       </div>
       <div className="mt-2 font-mono text-xl font-bold tabular text-foreground">
         {fmtNumber(quote.price, 2)}
-        <span className="ml-1 text-[10px] font-medium uppercase text-muted-foreground">
+        <span className="ms-1 text-[10px] font-medium uppercase text-muted-foreground">
           {quote.currency}
         </span>
       </div>
@@ -1792,7 +1899,7 @@ function Gasoline({
             <>
               <div className="mt-2 font-mono text-2xl font-bold tabular text-foreground">
                 {fmtCurrency(crudeLocal, currency, { maximumFractionDigits: 2 })}
-                <span className="ml-1 text-[11px] font-medium uppercase text-muted-foreground">
+                <span className="ms-1 text-[11px] font-medium uppercase text-muted-foreground">
                   /barrel
                 </span>
               </div>
@@ -2047,7 +2154,7 @@ function CurrencyTile({
         >
           <span className="text-sm" aria-hidden>{flag}</span>
           <span>{ccy}</span>
-          <LineChartIcon className="ml-0.5 inline h-3 w-3 opacity-60" />
+          <LineChartIcon className="ms-0.5 inline h-3 w-3 opacity-60" />
         </Link>
         <div className="flex items-center gap-1">
           <FavoriteButton pinned={isPinned} onToggle={onTogglePin} dark />

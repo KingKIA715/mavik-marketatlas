@@ -233,3 +233,36 @@ export function useRecentSearches() {
 
   return { recents, add, clear };
 }
+
+/* -------------------------------- Onboarding ------------------------------- */
+
+const ONBOARDING_KEY = "marketatlas:onboarding-dismissed";
+
+function readOnboardingDismissed(): boolean {
+  if (typeof window === "undefined") return true; // default to hidden during SSR to avoid a flash
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) === "1";
+  } catch {
+    return true;
+  }
+}
+
+/** One-time welcome banner state — shown until dismissed, never again after. */
+export function useOnboarding() {
+  const [dismissed, setDismissed] = useState(true);
+
+  useEffect(() => {
+    setDismissed(readOnboardingDismissed());
+  }, []);
+
+  const dismiss = useCallback(() => {
+    setDismissed(true);
+    try {
+      localStorage.setItem(ONBOARDING_KEY, "1");
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  return { dismissed, dismiss };
+}

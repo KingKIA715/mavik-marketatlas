@@ -13,16 +13,38 @@ import { useCallback, useEffect, useState } from "react";
  * effort — this covers what a visitor sees before they pick a specific
  * tool, which is where a language switch matters most.
  *
- * RTL caveat: switching to Arabic sets `dir="rtl"` on <html>, which
- * correctly flips text direction and native form controls. It does NOT
- * mirror the app's layout — this codebase positions things with physical
- * Tailwind utilities (`left-3`, `right-0`, etc.) throughout rather than
- * logical ones (`start-3`/`end-0`), so absolutely-positioned elements like
- * the search dropdown or icon insets stay on the visual left/right they
- * were authored for rather than flipping sides. A true mirrored RTL layout
- * means auditing every `left-`/`right-`/`ml-`/`mr-` in the app — worth
- * doing before shipping Arabic as a first-class experience, but a
- * separate, much larger pass than this one.
+ * RTL support: switching to Arabic sets `dir="rtl"` on <html>, which
+ * flips text direction and native form controls. Every absolutely-
+ * positioned element and physical margin/padding utility in this app's
+ * OWN code (src/routes, src/components — search icon/dropdown, scroll
+ * fade edges and arrows, the alert count badge, calculator input
+ * suffixes, the PWA install banner, directional chevron icons) has been
+ * converted to Tailwind's logical equivalents (`start-`/`end-`/`ps-`/`ms-`
+ * etc.) or given an `rtl:rotate-180` so it mirrors correctly. Verified by
+ * grep, not just by eye: recursively searching src/routes and
+ * src/components (excluding src/components/ui, see below) for physical
+ * `left-`/`right-`/`ml-`/`mr-`/`pl-`/`pr-` utilities now returns only two
+ * hits, both `left-0 right-0` full-width spans that are direction-agnostic
+ * by construction (0 on both sides is full width either way) — genuinely
+ * not bugs, not things I gave up on checking.
+ *
+ * NOT covered: src/components/ui/* is vendored shadcn/ui (Radix-based
+ * primitives — Dialog, Select, Sheet, Sidebar, DropdownMenu, etc.), and it
+ * does contain physical-positioning utilities (icon insets in menu items,
+ * dialog close buttons, etc.). I didn't hand-patch those: they're
+ * generated/vendored code normally managed via the shadcn CLI rather than
+ * edited by hand, several of the Radix primitives have their own internal
+ * positioning logic I'd risk breaking without a real browser to test
+ * against, and only a few of these primitives (Select, Tabs, Dialog) are
+ * even used in this app's actual UI. If Arabic RTL for this app's dialogs/
+ * selects looks wrong, start there.
+ *
+ * Also unverified: a couple of horizontal-scroll buttons (ScrollArrows,
+ * MarqueeRow's locked-state chevrons) call `element.scrollBy({ left: ...
+ * })`. Browsers disagree on whether `scrollLeft` runs positive-to-negative
+ * or negative-to-positive once `dir="rtl"` is set, and that can only be
+ * confirmed in a real RTL browser session — not something checkable from
+ * this environment.
  */
 
 export type LanguageCode = "en" | "ta" | "hi" | "zh" | "ja" | "ar";
@@ -63,6 +85,12 @@ const en: Dict = {
   "language.label": "Language",
   "portfolio.changeDisclaimer": "Change % is today's market move, not your gain/loss since purchase.",
   "portfolio.historyDisclaimer": "Approximate — applies today's exchange rate across the whole period rather than each date's actual rate.",
+  "onboarding.title": "Welcome to MarketAtlas",
+  "onboarding.pin": "⭐ Pin your favorite prices to the top of the dashboard",
+  "onboarding.alerts": "🔔 Set price alerts for any instrument",
+  "onboarding.portfolio": "💼 Track what you hold — gold, silver, or crypto",
+  "onboarding.privacy": "No login, no account — everything is saved on this device only",
+  "onboarding.dismiss": "Got it",
 };
 
 const ta: Dict = {
@@ -90,6 +118,12 @@ const ta: Dict = {
   "language.label": "மொழி",
   "portfolio.changeDisclaimer": "மாற்றம் % என்பது இன்றைய சந்தை நகர்வு, வாங்கியதிலிருந்து உங்கள் லாபம்/நஷ்டம் அல்ல.",
   "portfolio.historyDisclaimer": "தோராயமானது — ஒவ்வொரு தேதியின் உண்மையான விகிதத்திற்குப் பதிலாக இன்றைய மாற்று விகிதத்தையே முழு காலகட்டத்திற்கும் பயன்படுத்துகிறது.",
+  "onboarding.title": "MarketAtlas-க்கு வரவேற்கிறோம்",
+  "onboarding.pin": "⭐ உங்கள் விருப்பமான விலைகளை டாஷ்போர்டு மேலே பின் செய்யுங்கள்",
+  "onboarding.alerts": "🔔 எந்த கருவிக்கும் விலை எச்சரிக்கைகளை அமைக்கவும்",
+  "onboarding.portfolio": "💼 நீங்கள் வைத்திருப்பதைக் கண்காணிக்கவும் — தங்கம், வெள்ளி அல்லது கிரிப்டோ",
+  "onboarding.privacy": "உள்நுழைவு இல்லை, கணக்கு இல்லை — எல்லாம் இந்தச் சாதனத்தில் மட்டுமே சேமிக்கப்படுகிறது",
+  "onboarding.dismiss": "சரி புரிந்தது",
 };
 
 const hi: Dict = {
@@ -117,6 +151,12 @@ const hi: Dict = {
   "language.label": "भाषा",
   "portfolio.changeDisclaimer": "बदलाव % आज की मार्केट मूवमेंट है, आपकी खरीद के बाद के लाभ/हानि का नहीं।",
   "portfolio.historyDisclaimer": "अनुमानित — पूरी अवधि में आज की विनिमय दर लागू है, न कि हर तारीख़ की वास्तविक दर।",
+  "onboarding.title": "MarketAtlas में आपका स्वागत है",
+  "onboarding.pin": "⭐ अपनी पसंदीदा कीमतों को डैशबोर्ड के ऊपर पिन करें",
+  "onboarding.alerts": "🔔 किसी भी इंस्ट्रूमेंट के लिए प्राइस अलर्ट सेट करें",
+  "onboarding.portfolio": "💼 अपनी होल्डिंग्स ट्रैक करें — सोना, चांदी या क्रिप्टो",
+  "onboarding.privacy": "कोई लॉगिन नहीं, कोई अकाउंट नहीं — सब कुछ केवल इसी डिवाइस पर सेव होता है",
+  "onboarding.dismiss": "समझ गया",
 };
 
 const zh: Dict = {
@@ -144,6 +184,12 @@ const zh: Dict = {
   "language.label": "语言",
   "portfolio.changeDisclaimer": "涨跌幅指今日市场变动，并非您自购买以来的实际盈亏。",
   "portfolio.historyDisclaimer": "此为估算值 — 整个时间段均按今日汇率计算，而非每个日期的实际汇率。",
+  "onboarding.title": "欢迎使用 MarketAtlas",
+  "onboarding.pin": "⭐ 将您喜欢的价格置顶到仪表盘顶部",
+  "onboarding.alerts": "🔔 为任何品种设置价格提醒",
+  "onboarding.portfolio": "💼 追踪您的持仓 — 黄金、白银或加密货币",
+  "onboarding.privacy": "无需登录，无需账户 — 所有内容仅保存在本设备上",
+  "onboarding.dismiss": "知道了",
 };
 
 const ja: Dict = {
@@ -171,6 +217,12 @@ const ja: Dict = {
   "language.label": "言語",
   "portfolio.changeDisclaimer": "騰落率は本日の市場変動であり、購入時からの損益ではありません。",
   "portfolio.historyDisclaimer": "概算値です — 期間全体に本日の為替レートを適用しており、各日の実際のレートではありません。",
+  "onboarding.title": "MarketAtlasへようこそ",
+  "onboarding.pin": "⭐ お気に入りの価格をダッシュボード上部にピン留め",
+  "onboarding.alerts": "🔔 どの銘柄にも価格アラートを設定",
+  "onboarding.portfolio": "💼 保有資産を記録 — 金、銀、暗号資産",
+  "onboarding.privacy": "ログイン不要、アカウント不要 — すべてこの端末にのみ保存されます",
+  "onboarding.dismiss": "わかりました",
 };
 
 const ar: Dict = {
@@ -198,6 +250,12 @@ const ar: Dict = {
   "language.label": "اللغة",
   "portfolio.changeDisclaimer": "نسبة التغيير تعكس حركة السوق اليوم، وليست ربحك أو خسارتك منذ الشراء.",
   "portfolio.historyDisclaimer": "تقريبي — يطبّق سعر الصرف الحالي على كامل الفترة بدلاً من السعر الفعلي لكل تاريخ.",
+  "onboarding.title": "مرحبًا بك في MarketAtlas",
+  "onboarding.pin": "⭐ ثبّت أسعارك المفضلة أعلى لوحة التحكم",
+  "onboarding.alerts": "🔔 اضبط تنبيهات الأسعار لأي أداة",
+  "onboarding.portfolio": "💼 تتبّع ما تملكه — ذهب أو فضة أو عملات رقمية",
+  "onboarding.privacy": "بلا تسجيل دخول، بلا حساب — كل شيء محفوظ على هذا الجهاز فقط",
+  "onboarding.dismiss": "فهمت",
 };
 
 const DICTS: Record<LanguageCode, Dict> = { en, ta, hi, zh, ja, ar };

@@ -75,7 +75,7 @@ export function MarqueeRow<T>({
             onClick={() => scrollByStep(-1)}
             className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground sm:flex"
           >
-            <ChevronLeft className="h-3.5 w-3.5" />
+            <ChevronLeft className="h-3.5 w-3.5 rtl:rotate-180" />
           </button>
         ) : null}
         <div
@@ -95,7 +95,7 @@ export function MarqueeRow<T>({
             onClick={() => scrollByStep(1)}
             className="hidden h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border bg-card text-muted-foreground transition-colors hover:bg-surface-alt hover:text-foreground sm:flex"
           >
-            <ChevronRight className="h-3.5 w-3.5" />
+            <ChevronRight className="h-3.5 w-3.5 rtl:rotate-180" />
           </button>
         ) : null}
       </div>
