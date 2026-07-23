@@ -31,6 +31,7 @@ import { usePinned, usePriceAlerts, useRecentSearches, useOnboarding, type Price
 import { useTranslation } from "@/lib/i18n";
 import { PortfolioCard } from "@/components/PortfolioCard";
 import { fuzzyScore } from "@/lib/fuzzy-search";
+import { GOLD_RATE_CITIES } from "@/lib/india-cities";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -340,43 +341,76 @@ function Dashboard() {
  * COUNTRY TILES
  * ===================================================================== */
 
-/* ------------------------------ Share snapshot ------------------------------ */
+/* ------------------------------- Share snapshot ------------------------------ */
 // Shares the live per-country snapshot image (src/routes/api/snapshot/$country.ts)
-// as an actual file via the Web Share API where supported (native share
-// sheet on mobile — WhatsApp, Twitter, etc. show the real image, not a link
-// preview). Falls back to opening the image in a new tab on desktop/
-// unsupported browsers, where the user can save or share it manually.
-function ShareSnapshotButton({ country }: { country: CountryCode }) {
+// together with a text summary of today's actual movers and a link back to
+// the dashboard — not just a bare image. Tries progressively less-rich
+// fallbacks depending on what the browser actually supports, since file
+// sharing via the Web Share API is unevenly implemented:
+//   1. Share image + text + link together (richest — most mobile browsers)
+//   2. Share text + link only, no image (older/partial Web Share support)
+//   3. No Web Share API at all (most desktop browsers) — copy the text+link
+//      to the clipboard and open the image in a new tab so there's still
+//      something concrete to paste/save, rather than doing nothing.
+function ShareSnapshotButton({
+  country,
+  headline,
+  details,
+}: {
+  country: CountryCode;
+  headline: string;
+  details: string;
+}) {
   const [sharing, setSharing] = useState(false);
 
   const handleShare = async () => {
     setSharing(true);
     try {
-      const url = `${window.location.origin}/api/snapshot/${country}`;
-      const res = await fetch(url);
+      const siteUrl = `${window.location.origin}/?country=${country}`;
+      const title = "MarketAtlas — Today's Snapshot";
+      const text = [headline, details].filter(Boolean).join("\n") || "Today's market snapshot";
+      const imageUrl = `${window.location.origin}/api/snapshot/${country}`;
+
+      const res = await fetch(imageUrl);
       if (!res.ok) throw new Error("snapshot fetch failed");
       const svgText = await res.text();
       const file = new File([svgText], `marketatlas-${country.toLowerCase()}-snapshot.svg`, {
         type: "image/svg+xml",
       });
 
-      const canShareFile =
-        typeof navigator.share === "function" &&
-        typeof navigator.canShare === "function" &&
-        navigator.canShare({ files: [file] });
+      const withFile = { title, text, url: siteUrl, files: [file] };
+      const withoutFile = { title, text, url: siteUrl };
 
-      if (canShareFile) {
-        await navigator.share({
-          title: "MarketAtlas — Today's Snapshot",
-          text: "Today's gold, silver, crypto and market snapshot",
-          files: [file],
-        });
+      if (typeof navigator.share === "function" && typeof navigator.canShare === "function" && navigator.canShare(withFile)) {
+        await navigator.share(withFile);
+        return;
+      }
+      if (typeof navigator.share === "function") {
+        // Some browsers support navigator.share for text+url but don't
+        // implement canShare for files at all — try the file-free payload
+        // before giving up on native sharing entirely.
+        try {
+          await navigator.share(withoutFile);
+          return;
+        } catch (err) {
+          if (err instanceof Error && err.name === "AbortError") return;
+          // fall through to clipboard fallback below
+        }
+      }
+
+      // No usable Web Share API (most desktop browsers) — copy the details
+      // and link to the clipboard, and open the image so there's still
+      // something to paste and something to save/share manually.
+      const clipboardText = `${text}\n${siteUrl}`;
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(clipboardText);
+        window.open(imageUrl, "_blank", "noopener,noreferrer");
+        toast("Copied today's snapshot + link to clipboard, and opened the image in a new tab.");
       } else {
-        window.open(url, "_blank", "noopener,noreferrer");
+        window.open(imageUrl, "_blank", "noopener,noreferrer");
         toast("Opened the snapshot image — right-click (or long-press) to save or share it.");
       }
     } catch (err) {
-      // The user cancelling the native share sheet isn't a real failure.
       if (err instanceof Error && err.name === "AbortError") return;
       toast("Couldn't share the snapshot — try again in a moment.");
     } finally {
@@ -519,7 +553,14 @@ function TodaySnapshot({
               {headline}
             </p>
           ) : <div />}
-          <ShareSnapshotButton country={country} />
+          <ShareSnapshotButton
+            country={country}
+            headline={headline}
+            details={movers
+              .slice(0, 4)
+              .map((m) => `${m.emoji} ${m.label} ${m.changePercent >= 0 ? "+" : ""}${fmtNumber(m.changePercent, 1)}%`)
+              .join("  ·  ")}
+          />
         </div>
         <MarqueeRow
           items={movers}
@@ -1304,6 +1345,24 @@ function PreciousMetals({
             onTogglePin={() => onTogglePin(`metals:${m.code}`)}
           />
         ))}
+      </div>
+      {country === "IN" ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>Gold rate today in:</span>
+          {["mumbai", "delhi", "bangalore", "chennai", "kolkata"].map((slug) => {
+            const c = GOLD_RATE_CITIES.find((c) => c.slug === slug);
+            return c ? (
+              <Link key={slug} to="/gold-rate/$city" params={{ city: slug }} className="text-[color:var(--brand)] hover:underline">
+                {c.name}
+              </Link>
+            ) : null;
+          })}
+        </div>
+      ) : null}
+      <div className="mt-2 text-xs text-muted-foreground">
+        <Link to="/compare" className="text-[color:var(--brand)] hover:underline">
+          Compare gold, silver &amp; crypto prices across countries →
+        </Link>
       </div>
     </section>
   );

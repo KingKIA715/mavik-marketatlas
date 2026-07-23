@@ -38,6 +38,7 @@ import {
   Search,
   Briefcase,
   Building2,
+  Printer,
 } from "lucide-react";
 import { Header, Footer, ScrollIndicator } from "@/components/Layout";
 import { MobileNav } from "@/components/MobileNav";
@@ -132,20 +133,35 @@ const handleGroupChange = (g: "general" | "india" | "usa") => {
 };
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <Header showBackLink="dashboard" />
+      <div className="print:hidden">
+        <Header showBackLink="dashboard" />
+      </div>
 
       <main className="mx-auto max-w-6xl px-4 pb-16 py-6 sm:px-6 sm:py-10">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
-            Financial Calculators
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Powered by live rates from the MarketAtlas dashboard.
-          </p>
+        <div className="mb-6 flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Financial Calculators
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Powered by live rates from the MarketAtlas dashboard.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="print:hidden flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-surface-alt"
+          >
+            <Printer className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Print / Save as PDF</span>
+          </button>
         </div>
+        <p className="hidden print:block mb-4 text-xs text-muted-foreground">
+          MarketAtlas · {new Date().toLocaleDateString()} — figures reflect live rates at the time of printing, not a fixed quote.
+        </p>
 
 <Tabs value={activeTool} onValueChange={setActiveTool} className="w-full">
-    <div className="mb-4 flex gap-2">
+    <div className="mb-4 flex gap-2 print:hidden">
       {TOOL_GROUPS.map((g) => {
         const active = g.id === activeGroup;
         return (
@@ -166,7 +182,7 @@ const handleGroupChange = (g: "general" | "india" | "usa") => {
         );
       })}
     </div>
-    <div className="relative mb-6">
+    <div className="relative mb-6 print:hidden">
       <ScrollIndicator />
       <MarqueeRow
         items={groupTools}
@@ -246,9 +262,13 @@ const handleGroupChange = (g: "general" | "india" | "usa") => {
         </Tabs>
       </main>
 
-      <Footer />
+      <div className="print:hidden">
+        <Footer />
+      </div>
 
-      <MobileNav currentPath="/resources" />
+      <div className="print:hidden">
+        <MobileNav currentPath="/resources" />
+      </div>
     </div>
   );
 }

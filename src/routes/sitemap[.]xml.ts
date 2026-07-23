@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { METALS, CRYPTOS, STOCKS } from "@/lib/market-config";
+import { GOLD_RATE_CITIES } from "@/lib/india-cities";
 
 const BASE_URL = "https://mavik-marketatlas.lovable.app";
 
@@ -20,6 +21,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           { path: "/", lastmod: today, changefreq: "hourly", priority: "1.0" },
           { path: "/resources", lastmod: today, changefreq: "weekly", priority: "0.7" },
           { path: "/news", lastmod: today, changefreq: "hourly", priority: "0.6" },
+          { path: "/compare", lastmod: today, changefreq: "hourly", priority: "0.6" },
           // History pages — one per metal, crypto, and tracked stock index/ticker.
           // FX pairs are excluded: there are too many country×currency combinations
           // to be worth individual sitemap entries, and they're much lower search
@@ -41,6 +43,14 @@ export const Route = createFileRoute("/sitemap.xml")({
             lastmod: today,
             changefreq: "daily" as const,
             priority: "0.5",
+          })),
+          // City-specific gold/silver rate pages — high search-intent
+          // acquisition pages (see india-cities.ts for why they exist).
+          ...GOLD_RATE_CITIES.map((c) => ({
+            path: `/gold-rate/${c.slug}`,
+            lastmod: today,
+            changefreq: "daily" as const,
+            priority: "0.65",
           })),
         ];
 
