@@ -24,14 +24,16 @@ import {
   type MetalCode,
   type CryptoCode,
 } from "@/lib/market-config";
-import { getMarketSnapshot, triggerSync, getNews, type MarketSnapshot } from "@/lib/market.functions";
+import { getMarketSnapshot, triggerSync, getNews, getHistory, type MarketSnapshot } from "@/lib/market.functions";
+import { historyKey, readHistory, writeHistory } from "@/lib/history-cache";
 import { useSelectedCountry } from "@/lib/use-selected-country";
 import { MarqueeRow } from "@/components/MarqueeRow";
 import { usePinned, usePriceAlerts, useRecentSearches, useOnboarding, type PriceAlert } from "@/lib/use-watchlist";
 import { useTranslation } from "@/lib/i18n";
 import { PortfolioCard } from "@/components/PortfolioCard";
 import { fuzzyScore } from "@/lib/fuzzy-search";
-import { GOLD_RATE_CITIES } from "@/lib/india-cities";
+import { getMarketStatus } from "@/lib/market-hours";
+import { INDIA_CITIES, GOLD_RATE_CITIES } from "@/lib/india-cities";
 import { buildAssetIndex, resolveAsset, type AssetRef } from "@/lib/asset-resolver";
 import { fmtCurrency, fmtNumber, fmtPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -1379,6 +1381,107 @@ const METAL_DOT_GRADIENT: Record<MetalCode, string> = {
   XPT: "from-zinc-200 via-zinc-300 to-zinc-400",
 };
 
+/**
+ * Tiny hand-rolled SVG sparkline — deliberately NOT using recharts. That
+ * library is already lazy-loaded out of the main dashboard bundle for the
+ * Portfolio history chart specifically because it renders unconditionally
+ * for every visitor (see PortfolioCard.tsx's comment) — pulling it back in
+ * here, on cards that render on every single dashboard visit, would
+ * silently reintroduce exactly that regression. This is a few lines of
+ * plain SVG instead.
+ */
+function Sparkline({ values, up }: { values: number[]; up: boolean }) {
+  if (values.length < 2) return null;
+  const w = 64;
+  const h = 20;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const points = values
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * w;
+      const y = h - ((v - min) / range) * h;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    })
+    .join(" ");
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="shrink-0" aria-hidden="true">
+      <polyline
+        points={points}
+        fill="none"
+        stroke={up ? "var(--positive)" : "var(--negative)"}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/**
+ * 52-week high/low context + a ~3-month sparkline, fetched once per card
+ * via the same getHistory/history-cache infra the full history pages use
+ * (so it's IndexedDB-cached, not re-fetched every visit). Deliberately
+ * currency-agnostic: both the "% from 52W high" stat and the sparkline
+ * shape are ratios, so raw USD closes work fine without any FX conversion
+ * — one less thing that can go wrong here. Fails silently (renders
+ * nothing) rather than showing an error state, since this is supplementary
+ * context, not core price information the card already shows regardless.
+ */
+function FlagshipTrend({ symbol, alignMetal }: { symbol: string; alignMetal?: MetalCode }) {
+  const fetcher = useServerFn(getHistory);
+  const [series, setSeries] = useState<{ date: string; close: number }[] | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const cacheKey = historyKey(alignMetal ? `${symbol}@${alignMetal}` : symbol, "1y", "1wk");
+
+    (async () => {
+      const cached = await readHistory(cacheKey);
+      if (cached) {
+        if (!cancelled) setSeries(cached.data);
+        return;
+      }
+      try {
+        const res = await fetcher({
+          data: { symbol, range: "1y", interval: "1wk", ...(alignMetal ? { alignMetal } : {}) },
+        });
+        if (!cancelled) setSeries(res.data);
+        void writeHistory(cacheKey, res.data, res.source);
+      } catch {
+        // Silently omit — this is supplementary context, not critical.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [symbol, alignMetal, fetcher]);
+
+  if (!series || series.length < 2) return null;
+
+  const closes = series.map((p) => p.close);
+  const last = closes[closes.length - 1];
+  const high = Math.max(...closes);
+  const low = Math.min(...closes);
+  const pctFromHigh = high ? ((last - high) / high) * 100 : 0;
+  const sparkValues = closes.slice(-13); // ~3 months at weekly resolution
+  const up = sparkValues[sparkValues.length - 1] >= sparkValues[0];
+  const nearHigh = Math.abs(pctFromHigh) < 1;
+
+  return (
+    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+      <Sparkline values={sparkValues} up={up} />
+      <span className="whitespace-nowrap">
+        {nearHigh ? "Near 52W high" : `${fmtNumber(Math.abs(pctFromHigh), 1)}% off 52W high`}
+      </span>
+      <span className="whitespace-nowrap opacity-70">
+        (52W ${fmtNumber(low, low < 10 ? 2 : 0)}–${fmtNumber(high, high < 10 ? 2 : 0)})
+      </span>
+    </div>
+  );
+}
+
 function MetalRow({
   metalCode,
   metalName,
@@ -1471,6 +1574,10 @@ function MetalRow({
           </Link>
   </div>
         </header>
+
+        <div className="px-4 pt-2">
+          <FlagshipTrend symbol={yahooSymbol} alignMetal={metalCode} />
+        </div>
 
         <div className="p-4">
           {!valid ? (
@@ -1690,6 +1797,8 @@ function CryptoCard({
           </div>
         </div>
 
+        <FlagshipTrend symbol={cryptoDef.yahoo} />
+
         {valid ? (
           <>
             <div className="mt-3 font-mono text-xl font-bold tabular text-foreground">
@@ -1713,6 +1822,45 @@ function CryptoCard({
 /* =====================================================================
  * 3) STOCK MARKET
  * ===================================================================== */
+
+/**
+ * Live open/closed indicator for a country's primary equity market, using
+ * the pure getMarketStatus logic (src/lib/market-hours.ts — tested
+ * separately, including the UAE Sun–Thu week and Japan/China lunch
+ * breaks). Re-checks every 30s so it flips to "Closed" right as a session
+ * ends without needing a page reload.
+ */
+function MarketStatusBadge({ country }: { country: CountryCode }) {
+  const [status, setStatus] = useState<ReturnType<typeof getMarketStatus> | null>(null);
+
+  useEffect(() => {
+    const update = () => setStatus(getMarketStatus(country));
+    update();
+    const interval = setInterval(update, 30_000);
+    return () => clearInterval(interval);
+  }, [country]);
+
+  if (!status) return <span className="h-5 w-24" suppressHydrationWarning />;
+
+  const label = status.open
+    ? "Market open"
+    : "Market closed";
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ring-1",
+        status.open
+          ? "bg-emerald-500/10 text-emerald-600 ring-emerald-500/30 dark:text-emerald-400"
+          : "bg-muted text-muted-foreground ring-border",
+      )}
+      title={`${status.exchangeLabel} — ${label}`}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", status.open ? "bg-emerald-500" : "bg-muted-foreground/50")} />
+      {status.exchangeLabel} · {label}
+    </span>
+  );
+}
 
 function StockMarket({
   country,
@@ -1767,7 +1915,9 @@ function StockMarket({
       <SectionHeader
         title={t("section.stocks")}
         hint={`${def.flag} ${def.name} · indices and large-cap movers`}
-      />
+      >
+        <MarketStatusBadge country={country} />
+      </SectionHeader>
 
       <div className="grid gap-3 sm:grid-cols-3">
         {localIndices.length === 0 ? (
@@ -2007,6 +2157,19 @@ function Gasoline({
       <p className="mt-2 text-[10px] text-muted-foreground">
         Retail petrol/diesel are derived from live WTI crude with regional refining spreads. LPG prices are indicative regional references and vary by city, dealer, and date.
       </p>
+      {country === "IN" ? (
+        <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>Petrol price today in:</span>
+          {["mumbai", "delhi", "bangalore", "chennai", "kolkata"].map((slug) => {
+            const c = INDIA_CITIES.find((c) => c.slug === slug);
+            return c ? (
+              <Link key={slug} to="/petrol-price/$city" params={{ city: slug }} className="text-[color:var(--brand)] hover:underline">
+                {c.name}
+              </Link>
+            ) : null;
+          })}
+        </div>
+      ) : null}
     </section>
   );
 }

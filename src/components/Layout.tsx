@@ -206,15 +206,7 @@ export function Header({ fetchedAt, locale, showBackLink, subtitle = "Resources"
         {fetchedAt && locale ? (
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <LocalDate iso={fetchedAt} locale={locale} />
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2 py-0.5 ring-1 ring-emerald-400/40">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" />
-                <span className="relative h-2 w-2 rounded-full bg-emerald-400" />
-              </span>
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-emerald-200">
-                Live
-              </span>
-            </span>
+            <Freshness iso={fetchedAt} />
           </div>
         ) : (
           <div className="mt-2">
@@ -247,6 +239,70 @@ function LocalDate({ iso, locale }: { iso: string; locale: string }) {
   return (
     <span suppressHydrationWarning className="font-mono text-[11px] text-white/80">
       {text || "\u00A0"}
+    </span>
+  );
+}
+
+/**
+ * Replaces what used to be a hardcoded "Live" badge that was always green
+ * and always said "Live" regardless of how stale the data actually was —
+ * misleading, since metals/rates cache for up to an hour and other data
+ * for 15 minutes (see market-cache.server.ts). This reflects the real
+ * elapsed time since `fetchedAt`, re-computed every 30s so it stays
+ * current without a page reload.
+ */
+function Freshness({ iso }: { iso: string }) {
+  const [minutesAgo, setMinutesAgo] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => setMinutesAgo(Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000)));
+    update();
+    const interval = setInterval(update, 30_000);
+    return () => clearInterval(interval);
+  }, [iso]);
+
+  if (minutesAgo === null) {
+    // Avoid an SSR/client mismatch — "now" only exists client-side.
+    return <span className="h-[18px] w-16" suppressHydrationWarning />;
+  }
+
+  const isLive = minutesAgo < 10;
+  const isFresh = minutesAgo < 60;
+  const label = isLive
+    ? "Live"
+    : minutesAgo < 60
+      ? `Updated ${minutesAgo}m ago`
+      : `Updated ${Math.floor(minutesAgo / 60)}h ${minutesAgo % 60}m ago`;
+
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 ring-1",
+        isLive
+          ? "bg-emerald-500/15 ring-emerald-400/40"
+          : isFresh
+            ? "bg-amber-500/15 ring-amber-400/40"
+            : "bg-white/10 ring-white/20",
+      )}
+      title={new Date(iso).toLocaleTimeString()}
+    >
+      <span className="relative flex h-2 w-2">
+        {isLive ? <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400 opacity-60" /> : null}
+        <span
+          className={cn(
+            "relative h-2 w-2 rounded-full",
+            isLive ? "bg-emerald-400" : isFresh ? "bg-amber-400" : "bg-white/50",
+          )}
+        />
+      </span>
+      <span
+        className={cn(
+          "text-[10px] font-semibold uppercase tracking-wider",
+          isLive ? "text-emerald-200" : isFresh ? "text-amber-200" : "text-white/70",
+        )}
+      >
+        {label}
+      </span>
     </span>
   );
 }

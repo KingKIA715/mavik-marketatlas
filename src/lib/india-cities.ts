@@ -1,13 +1,16 @@
 /**
- * Major Indian cities for the /gold-rate/$city landing pages. These pages
- * all show the same national/benchmark gold & silver rate — actual retail
- * price barely varies city to city beyond local making charges and
- * jeweller-association markups this app has no data source for. Serving
- * the same underlying rate under a city-specific URL is standard practice
- * across virtually every gold-rate site in India (people search "gold rate
- * today in <their city>" far more than the generic query), not a claim
- * that MarketAtlas has real city-differentiated pricing — the page itself
- * says so explicitly.
+ * Major Indian cities for city-specific landing pages (/gold-rate/$city,
+ * /petrol-price/$city). These pages all show the same national/benchmark
+ * rate — actual retail price barely varies city to city for gold beyond
+ * local making charges and jeweller markups this app has no data source
+ * for, and for fuel specifically, real city/state-level prices DO differ
+ * meaningfully due to state VAT (which this app also doesn't have
+ * per-state data for) — see FUEL_SPREAD's own comments in market-config.ts.
+ * Serving the same underlying rate under a city-specific URL is standard
+ * practice across virtually every gold-rate and fuel-price site in India
+ * (people search "petrol price today in <their city>" far more than the
+ * generic query), not a claim that MarketAtlas has real city-differentiated
+ * pricing — every page using this list says so explicitly.
  */
 export interface CityDef {
   slug: string;
@@ -15,7 +18,7 @@ export interface CityDef {
   state: string;
 }
 
-export const GOLD_RATE_CITIES: CityDef[] = [
+export const INDIA_CITIES: CityDef[] = [
   { slug: "mumbai", name: "Mumbai", state: "Maharashtra" },
   { slug: "delhi", name: "Delhi", state: "Delhi" },
   { slug: "bangalore", name: "Bangalore", state: "Karnataka" },
@@ -42,6 +45,9 @@ export const GOLD_RATE_CITIES: CityDef[] = [
   { slug: "chandigarh", name: "Chandigarh", state: "Chandigarh" },
 ];
 
+/** @deprecated Use INDIA_CITIES — kept so the existing /gold-rate/$city page doesn't need touching. */
+export const GOLD_RATE_CITIES = INDIA_CITIES;
+
 export function findCity(slug: string): CityDef | undefined {
-  return GOLD_RATE_CITIES.find((c) => c.slug === slug.toLowerCase());
+  return INDIA_CITIES.find((c) => c.slug === slug.toLowerCase());
 }

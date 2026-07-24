@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import type {} from "@tanstack/react-start";
 import { METALS, CRYPTOS, STOCKS } from "@/lib/market-config";
-import { GOLD_RATE_CITIES } from "@/lib/india-cities";
+import { INDIA_CITIES } from "@/lib/india-cities";
 
 const BASE_URL = "https://mavik-marketatlas.lovable.app";
 
@@ -46,11 +46,18 @@ export const Route = createFileRoute("/sitemap.xml")({
           })),
           // City-specific gold/silver rate pages — high search-intent
           // acquisition pages (see india-cities.ts for why they exist).
-          ...GOLD_RATE_CITIES.map((c) => ({
+          ...INDIA_CITIES.map((c) => ({
             path: `/gold-rate/${c.slug}`,
             lastmod: today,
             changefreq: "daily" as const,
             priority: "0.65",
+          })),
+          // Same pattern, same city list, for petrol/diesel price pages.
+          ...INDIA_CITIES.map((c) => ({
+            path: `/petrol-price/${c.slug}`,
+            lastmod: today,
+            changefreq: "daily" as const,
+            priority: "0.6",
           })),
         ];
 
